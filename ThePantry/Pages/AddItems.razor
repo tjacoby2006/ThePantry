@@ -199,7 +199,11 @@ else if (activeTab == "scan")
             Logger.LogError(ex, "Error loading recent scans");
         }
     }
-    
+
+    private async Task AddManualItem()
+    {
+        try
+        {
             await Mediator.Send(new AddInventoryItemCommand(
                 manualItem.Name,
                 manualItem.Description,

@@ -2,8 +2,10 @@
 @using MediatR
 @using ThePantry.Application.Queries
 @using ThePantry.Application.Commands
+@using ThePantry.Services
 @inject IMediator Mediator
 @inject ILogger<ShoppingList> Logger
+@inject ToastService ToastService
 
 <PageTitle>Shopping List - The Pantry</PageTitle>
 
