@@ -3,6 +3,7 @@
 @using ThePantry.Application.Commands
 @using ThePantry.Application.Queries
 @using ThePantry.Services
+@implements IDisposable
 @inject IMediator Mediator
 @inject ILogger<ScanMonitor> Logger
 @inject ToastService ToastService
@@ -174,6 +175,7 @@ else
     private bool showReviewModal;
     private ScanQueueItemDto? selectedScan;
     private ReviewItemModel reviewItem = new();
+    private CancellationTokenSource cts = new();
     
     private class ReviewItemModel
     {
@@ -206,7 +208,7 @@ else
         isLoading = true;
         try
         {
-            allScans = await Mediator.Send(new GetScanQueueQuery());
+            allScans = await Mediator.Send(new GetScanQueueQuery(), cts.Token);
             pendingScans = allScans.Where(s => s.Status == Domain.ScanStatus.Pending || s.Status == Domain.ScanStatus.Processing).ToList();
             failedScans = allScans.Where(s => s.Status == Domain.ScanStatus.Failed).ToList();
             
@@ -217,6 +219,7 @@ else
                 _ => allScans
             };
         }
+        catch (OperationCanceledException) { /* Ignore */ }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error loading scan queue");
@@ -234,13 +237,18 @@ else
     
     private async Task StartAutoRefresh()
     {
-        while (true)
+        while (!cts.Token.IsCancellationRequested)
         {
-            await Task.Delay(5000);
-            if (!showReviewModal)
+            try
             {
-                await LoadQueue();
+                await Task.Delay(5000, cts.Token);
+                if (!showReviewModal && !cts.Token.IsCancellationRequested)
+                {
+                    await LoadQueue();
+                    await InvokeAsync(StateHasChanged);
+                }
             }
+            catch (OperationCanceledException) { break; }
         }
     }
     
@@ -304,6 +312,12 @@ else
             Logger.LogError(ex, "Error deleting scan");
             await ToastService.ShowError("Error deleting scan");
         }
+    }
+
+    public void Dispose()
+    {
+        cts.Cancel();
+        cts.Dispose();
     }
     
     private string GetStatusBadge(Domain.ScanStatus status)
