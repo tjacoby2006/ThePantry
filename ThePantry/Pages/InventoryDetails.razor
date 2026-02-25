@@ -42,7 +42,19 @@ else
                     <p class="text-muted">@inventoryItem.Description</p>
                     <hr />
                     <div class="mb-2"><strong>Category:</strong> <span class="badge bg-info">@inventoryItem.Category</span></div>
-                    <div class="mb-2"><strong>UPC:</strong> <code>@(string.IsNullOrEmpty(inventoryItem.Upc) ? "N/A" : inventoryItem.Upc)</code></div>
+                    <div class="mb-2"><strong>SKUs:</strong> 
+                        @if (inventoryItem.Skus != null && inventoryItem.Skus.Any())
+                        {
+                            @foreach (var sku in inventoryItem.Skus)
+                            {
+                                <code class="d-block">@sku</code>
+                            }
+                        }
+                        else
+                        {
+                            <code>N/A</code>
+                        }
+                    </div>
                     <div class="mb-2"><strong>On Hand:</strong> <span class="h5 @(inventoryItem.IsBelowThreshold ? "text-danger" : "text-success")">@inventoryItem.OnHandCount</span></div>
                     <div class="mb-2"><strong>Minimum:</strong> @inventoryItem.MinimumThreshold</div>
                     <div class="mb-2"><strong>Status:</strong> 

@@ -77,7 +77,8 @@ public class ScanProcessingHostedService : BackgroundService
                     
                     // Check if we should auto-create inventory item
                     var existingItem = await context.InventoryItems
-                        .FirstOrDefaultAsync(i => i.Upc == scanItem.Upc, cancellationToken);
+                        .Include(i => i.Skus)
+                        .FirstOrDefaultAsync(i => i.Skus.Any(s => s.Sku == scanItem.Upc), cancellationToken);
                     
                     if (existingItem == null)
                     {
@@ -89,9 +90,9 @@ public class ScanProcessingHostedService : BackgroundService
                             Category = "Pantry",
                             OnHandCount = 1,
                             MinimumThreshold = 1,
-                            Upc = scanItem.Upc,
                             CreatedDate = DateTime.UtcNow
                         };
+                        newItem.Skus.Add(new ProductSku { Sku = scanItem.Upc });
                         
                         context.InventoryItems.Add(newItem);
                         await context.SaveChangesAsync(cancellationToken);

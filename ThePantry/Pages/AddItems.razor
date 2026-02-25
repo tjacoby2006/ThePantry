@@ -114,8 +114,8 @@ else if (activeTab == "manual")
                         <InputNumber class="form-control" @bind-Value="manualItem.MinimumThreshold" />
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">UPC (optional)</label>
-                        <InputText class="form-control" @bind-Value="manualItem.Upc" />
+                        <label class="form-label">SKUs (comma separated)</label>
+                        <InputText class="form-control" @bind-Value="manualItem.Skus" placeholder="e.g. 123456, 789012" />
                     </div>
                 </div>
                 
@@ -129,7 +129,7 @@ else if (activeTab == "csv")
     <div class="card">
         <div class="card-body">
             <p>Upload a CSV file with the following columns:</p>
-            <code>Name, Description, Category, OnHandCount, MinimumThreshold, Upc</code>
+            <code>Name, Description, Category, OnHandCount, MinimumThreshold, Skus (semicolon separated)</code>
             
             <div class="mt-3">
                 <InputFile OnChange="HandleCsvUpload" accept=".csv" class="form-control" />
@@ -149,7 +149,7 @@ else if (activeTab == "csv")
     private string activeTab = "scan";
     private ManualItemModel manualItem = new();
     private string csvMessage = "";
-    private bool csvSuccess;
+    private bool csvSuccess = false;
     private string scanUpc = "";
     private List<ScanQueueItemDto> recentScans = new();
     private DotNetObjectReference<AddItems>? objRef;
@@ -180,7 +180,7 @@ else if (activeTab == "csv")
         public string Category { get; set; } = "Pantry";
         public int OnHandCount { get; set; } = 1;
         public int MinimumThreshold { get; set; } = 1;
-        public string? Upc { get; set; }
+        public string? Skus { get; set; }
     }
     
     protected override async Task OnInitializedAsync()
@@ -266,13 +266,17 @@ else if (activeTab == "csv")
     {
         try
         {
+            var skuList = manualItem.Skus?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .ToList();
+
             await Mediator.Send(new AddInventoryItemCommand(
                 manualItem.Name,
                 manualItem.Description,
                 manualItem.Category,
                 manualItem.OnHandCount,
                 manualItem.MinimumThreshold,
-                manualItem.Upc
+                skuList
             ));
 
             await ToastService.ShowSuccess($"Added {manualItem.Name} to inventory");
@@ -315,10 +319,11 @@ else if (activeTab == "csv")
                     var category = parts.Length > 2 ? parts[2].Trim() : "Pantry";
                     int.TryParse(parts.Length > 3 ? parts[3].Trim() : "1", out int onHand);
                     int.TryParse(parts.Length > 4 ? parts[4].Trim() : "1", out int min);
-                    var upc = parts.Length > 5 ? parts[5].Trim() : null;
+                    var skusRaw = parts.Length > 5 ? parts[5].Trim() : null;
+                    var skus = skusRaw?.Split(';', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList();
 
                     await Mediator.Send(new AddInventoryItemCommand(
-                        name, description, category, onHand, min, upc
+                        name, description, category, onHand, min, skus
                     ));
                     successCount++;
                 }

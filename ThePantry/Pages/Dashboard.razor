@@ -237,9 +237,9 @@ else
             var scans = await Mediator.Send(new GetScanQueueQuery());
             pendingScansCount = scans.Count(s => s.Status == Domain.ScanStatus.Pending || s.Status == Domain.ScanStatus.Processing);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Logger.LogError(ex, "Error loading dashboard data");
+            Logger.LogError("Error loading dashboard data");
         }
         finally
         {
@@ -260,7 +260,7 @@ else
             await ToastService.ShowInfo("Item count decreased");
             await LoadDashboardData();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             await ToastService.ShowError("Error updating item");
         }
@@ -274,7 +274,7 @@ else
             await ToastService.ShowSuccess("Item count increased");
             await LoadDashboardData();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             await ToastService.ShowError("Error updating item");
         }

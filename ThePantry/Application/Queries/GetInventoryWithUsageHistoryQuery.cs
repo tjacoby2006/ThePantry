@@ -44,7 +44,7 @@ public class GetInventoryWithUsageHistoryHandler : IRequestHandler<GetInventoryW
                 Category = i.Category,
                 OnHandCount = i.OnHandCount,
                 MinimumThreshold = i.MinimumThreshold,
-                Upc = i.Upc
+                Skus = i.Skus.Select(s => s.Sku).ToList()
             })
             .FirstOrDefaultAsync(cancellationToken);
             

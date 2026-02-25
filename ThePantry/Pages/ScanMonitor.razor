@@ -282,7 +282,7 @@ else
                 reviewItem.Category,
                 reviewItem.OnHandCount,
                 reviewItem.MinimumThreshold,
-                selectedScan.Upc
+                new List<string> { selectedScan.Upc }
             ));
             
             await ToastService.ShowSuccess($"{reviewItem.Name} added to inventory");

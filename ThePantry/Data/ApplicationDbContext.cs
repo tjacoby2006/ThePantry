@@ -11,6 +11,7 @@ public class ApplicationDbContext : DbContext
     }
     
     public DbSet<InventoryItem> InventoryItems { get; set; } = null!;
+    public DbSet<ProductSku> ProductSkus { get; set; } = null!;
     public DbSet<UsageHistory> UsageHistories { get; set; } = null!;
     public DbSet<ScanQueueItem> ScanQueueItems { get; set; } = null!;
     
@@ -24,10 +25,19 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.Category).HasMaxLength(100).HasDefaultValue("Pantry");
-            entity.Property(e => e.Upc).HasMaxLength(50);
             entity.HasIndex(e => e.Name);
             entity.HasIndex(e => e.Category);
-            entity.HasIndex(e => e.Upc);
+        });
+
+        modelBuilder.Entity<ProductSku>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Sku).IsRequired().HasMaxLength(50);
+            entity.HasIndex(e => e.Sku).IsUnique();
+            entity.HasOne(e => e.InventoryItem)
+                  .WithMany(i => i.Skus)
+                  .HasForeignKey(e => e.InventoryItemId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
         
         modelBuilder.Entity<UsageHistory>(entity =>

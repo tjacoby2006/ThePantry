@@ -214,13 +214,14 @@ else
                 null,
                 manualItem.Category,
                 0, // On hand is 0 so it shows up in shopping list
-                manualItem.MinimumThreshold
+                manualItem.MinimumThreshold,
+                null
             ));
             await ToastService.ShowSuccess($"{manualItem.Name} added to shopping list");
             CloseManualAddModal();
             await LoadShoppingList();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             await ToastService.ShowError("Error adding item");
         }
@@ -249,9 +250,9 @@ else
             ClosePurchasedModal();
             await LoadShoppingList();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Logger.LogError(ex, "Error marking item as purchased");
+            Logger.LogError("Error marking item as purchased");
         }
     }
 }

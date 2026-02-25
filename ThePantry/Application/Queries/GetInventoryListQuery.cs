@@ -31,7 +31,7 @@ public class InventoryItemDto
     public string Category { get; set; } = string.Empty;
     public int OnHandCount { get; set; }
     public int MinimumThreshold { get; set; }
-    public string? Upc { get; set; }
+    public List<string> Skus { get; set; } = new();
     public bool IsBelowThreshold => OnHandCount < MinimumThreshold;
     public int Deficit => Math.Max(0, MinimumThreshold - OnHandCount);
 }
@@ -54,7 +54,8 @@ public class GetInventoryListHandler : IRequestHandler<GetInventoryListQuery, In
             var search = request.SearchTerm.ToLower();
             query = query.Where(i => 
                 i.Name.ToLower().Contains(search) || 
-                (i.Description != null && i.Description.ToLower().Contains(search)));
+                (i.Description != null && i.Description.ToLower().Contains(search)) ||
+                i.Skus.Any(s => s.Sku.ToLower().Contains(search)));
         }
         
         if (!string.IsNullOrWhiteSpace(request.Category))
@@ -91,7 +92,7 @@ public class GetInventoryListHandler : IRequestHandler<GetInventoryListQuery, In
                 Category = i.Category,
                 OnHandCount = i.OnHandCount,
                 MinimumThreshold = i.MinimumThreshold,
-                Upc = i.Upc
+                Skus = i.Skus.Select(s => s.Sku).ToList()
             })
             .ToListAsync(cancellationToken);
         

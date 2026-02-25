@@ -11,7 +11,7 @@ public record AddInventoryItemCommand(
     string Category,
     int OnHandCount,
     int MinimumThreshold,
-    string? Upc = null
+    List<string>? Skus = null
 ) : IRequest<InventoryItem>;
 
 public class AddInventoryItemHandler : IRequestHandler<AddInventoryItemCommand, InventoryItem>
@@ -32,9 +32,16 @@ public class AddInventoryItemHandler : IRequestHandler<AddInventoryItemCommand, 
             Category = request.Category,
             OnHandCount = request.OnHandCount,
             MinimumThreshold = request.MinimumThreshold,
-            Upc = request.Upc,
             CreatedDate = DateTime.UtcNow
         };
+
+        if (request.Skus != null && request.Skus.Any())
+        {
+            foreach (var sku in request.Skus.Where(s => !string.IsNullOrWhiteSpace(s)))
+            {
+                item.Skus.Add(new ProductSku { Sku = sku });
+            }
+        }
         
         _context.InventoryItems.Add(item);
         await _context.SaveChangesAsync(cancellationToken);

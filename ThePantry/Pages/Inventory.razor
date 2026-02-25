@@ -170,8 +170,9 @@ else
                                 </div>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">UPC</label>
-                                <InputText class="form-control" @bind-Value="editingItem.Upc" />
+                                <label class="form-label">SKUs (comma separated)</label>
+                                <input type="text" class="form-control" value="@string.Join(", ", editingItem.Skus)" 
+                                       @onchange="@(e => editingItem.Skus = e.Value?.ToString()?.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList() ?? new List<string>())" />
                             </div>
                             <div class="modal-footer px-0 pb-0">
                                 <button type="button" class="btn btn-secondary" @onclick="CloseEditModal">Cancel</button>
@@ -333,11 +334,12 @@ else
             ));
 
             var csv = new StringBuilder();
-            csv.AppendLine("Name,Description,Category,OnHandCount,MinimumThreshold,Upc");
+            csv.AppendLine("Name,Description,Category,OnHandCount,MinimumThreshold,Skus");
 
             foreach (var item in result.Items)
             {
-                csv.AppendLine($"\"{item.Name}\",\"{item.Description}\",\"{item.Category}\",{item.OnHandCount},{item.MinimumThreshold},\"{item.Upc}\"");
+                var skus = string.Join(";", item.Skus);
+                csv.AppendLine($"\"{item.Name}\",\"{item.Description}\",\"{item.Category}\",{item.OnHandCount},{item.MinimumThreshold},\"{skus}\"");
             }
 
             var fileName = $"Inventory_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
@@ -381,7 +383,7 @@ else
             Category = item.Category,
             OnHandCount = item.OnHandCount,
             MinimumThreshold = item.MinimumThreshold,
-            Upc = item.Upc
+            Skus = new List<string>(item.Skus)
         };
         showEditModal = true;
     }
@@ -405,7 +407,7 @@ else
                 editingItem.Category,
                 editingItem.OnHandCount,
                 editingItem.MinimumThreshold,
-                editingItem.Upc
+                editingItem.Skus
             ));
             await ToastService.ShowSuccess($"{editingItem.Name} updated successfully");
             CloseEditModal();

@@ -33,7 +33,7 @@ public class QueueScanHandler : IRequestHandler<QueueScanCommand, ScanQueueItem>
 
         // Check if we already have this UPC in inventory
         var existingItem = await _context.InventoryItems
-            .FirstOrDefaultAsync(i => i.Upc == request.Upc, cancellationToken);
+            .FirstOrDefaultAsync(i => i.Skus.Any(s => s.Sku == request.Upc), cancellationToken);
         
         var scanItem = new ScanQueueItem
         {

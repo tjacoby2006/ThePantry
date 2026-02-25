@@ -8,9 +8,9 @@ public class InventoryItem
     public string Category { get; set; } = "Pantry";
     public int OnHandCount { get; set; }
     public int MinimumThreshold { get; set; }
-    public string? Upc { get; set; }
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
     public DateTime? LastModifiedDate { get; set; }
     
+    public ICollection<ProductSku> Skus { get; set; } = new List<ProductSku>();
     public ICollection<UsageHistory> UsageHistories { get; set; } = new List<UsageHistory>();
 }
