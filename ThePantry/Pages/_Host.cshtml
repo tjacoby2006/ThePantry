@@ -30,5 +30,29 @@
     </div>
 
     <script src="_framework/blazor.server.js"></script>
+    <script>
+        window.showToast = (message, type) => {
+            const container = document.getElementById('toast-container') || createContainer();
+            const toast = document.createElement('div');
+            toast.className = `toast-notification toast-${type}`;
+            toast.innerHTML = `
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()" style="background:none;border:none;color:inherit;cursor:pointer;margin-left:10px;">&times;</button>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.5s forwards';
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
+        };
+
+        function createContainer() {
+            const container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+            return container;
+        }
+    </script>
 </body>
 </html>

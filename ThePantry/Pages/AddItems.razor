@@ -2,8 +2,10 @@
 @using MediatR
 @using ThePantry.Application.Commands
 @using ThePantry.Application.Queries
+@using ThePantry.Services
 @inject IMediator Mediator
 @inject ILogger<AddItems> Logger
+@inject ToastService ToastService
 
 <PageTitle>Add Items - The Pantry</PageTitle>
 
@@ -198,10 +200,6 @@ else if (activeTab == "scan")
         }
     }
     
-    private async Task AddManualItem()
-    {
-        try
-        {
             await Mediator.Send(new AddInventoryItemCommand(
                 manualItem.Name,
                 manualItem.Description,
@@ -211,15 +209,13 @@ else if (activeTab == "scan")
                 manualItem.Upc
             ));
             
+            await ToastService.ShowSuccess($"{manualItem.Name} added to inventory");
             manualItem = new ManualItemModel();
-            csvMessage = "Item added successfully!";
-            csvSuccess = true;
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error adding item");
-            csvMessage = "Error adding item: " + ex.Message;
-            csvSuccess = false;
+            await ToastService.ShowError("Error adding item: " + ex.Message);
         }
     }
     
@@ -270,16 +266,14 @@ else if (activeTab == "scan")
         try
         {
             await Mediator.Send(new QueueScanCommand(scanUpc.Trim()));
-            scanMessage = $"UPC {scanUpc} queued for processing!";
-            scanSuccess = true;
+            await ToastService.ShowInfo($"UPC {scanUpc} queued for processing");
             scanUpc = "";
             await LoadRecentScans();
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error queueing scan");
-            scanMessage = "Error queueing scan: " + ex.Message;
-            scanSuccess = false;
+            await ToastService.ShowError("Error queueing scan: " + ex.Message);
         }
     }
     

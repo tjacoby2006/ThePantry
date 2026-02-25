@@ -2,12 +2,74 @@
 @using MediatR
 @using ThePantry.Application.Commands
 @using ThePantry.Application.Queries
+@using ThePantry.Services
 @inject IMediator Mediator
 @inject ILogger<Dashboard> Logger
+@inject ToastService ToastService
 
 <PageTitle>Dashboard - The Pantry</PageTitle>
 
-<h1>Pantry Inventory</h1>
+<h1>Dashboard</h1>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">Total Items</h5>
+                <h2 class="card-text">@totalItemsCount</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <h5 class="card-title">Low Stock</h5>
+                <h2 class="card-text">@lowStockCount</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5 class="card-title">Pending Scans</h5>
+                <h2 class="card-text">@pendingScansCount</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (lowStockItems != null && lowStockItems.Any())
+{
+    <div class="card mb-4 border-warning">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">Low Stock Alert</h5>
+        </div>
+        <div class="card-body p-0">
+            <ul class="list-group list-group-flush">
+                @foreach (var item in lowStockItems)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>@item.Name</strong>
+                            <span class="text-muted ms-2">(@item.Category)</span>
+                        </div>
+                        <div>
+                            <span class="badge bg-danger rounded-pill me-2">@item.OnHandCount / @item.MinimumThreshold</span>
+                            <button class="btn btn-sm btn-outline-success" @onclick="() => IncrementItem(item.Id)">
+                                <span class="oi oi-plus"></span>
+                            </button>
+                        </div>
+                    </li>
+                }
+            </ul>
+        </div>
+        <div class="card-footer text-end">
+            <a href="shopping-list" class="btn btn-sm btn-primary">View Shopping List</a>
+        </div>
+    </div>
+}
+
+<h3>Quick Inventory Search</h3>
 
 <div class="mb-3">
     <div class="row g-2">
@@ -82,9 +144,6 @@ else
                         </td>
                         <td class="text-center">
                             <div class="btn-group" role="group">
-                                <a href="inventory/details/@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
-                                    <span class="oi oi-eye"></span>
-                                </a>
                                 <button class="btn btn-sm btn-outline-danger" @onclick="() => DecrementItem(item.Id)" title="Use Item">
                                     <span class="oi oi-minus"></span>
                                 </button>
@@ -98,6 +157,98 @@ else
             </tbody>
         </table>
     </div>
+}
+
+@code {
+    private List<InventoryItemDto>? inventoryItems;
+    private List<InventoryItemDto>? lowStockItems;
+    private int totalItemsCount;
+    private int lowStockCount;
+    private int pendingScansCount;
+    
+    private string searchTerm = "";
+    private string selectedCategory = "";
+    private bool isLoading = true;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+    }
+    
+    private async Task LoadDashboardData()
+    {
+        isLoading = true;
+        try
+        {
+            // Load inventory for search
+            var inventoryResult = await Mediator.Send(new GetInventoryListQuery(
+                SearchTerm: string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm,
+                Category: string.IsNullOrWhiteSpace(selectedCategory) ? null : selectedCategory,
+                Page: 1,
+                PageSize: 10
+            ));
+            inventoryItems = inventoryResult.Items;
+            totalItemsCount = inventoryResult.TotalCount;
+
+            // Load low stock items
+            var shoppingList = await Mediator.Send(new GetShoppingListQuery());
+            lowStockCount = shoppingList.Count;
+            lowStockItems = shoppingList.Select(s => new InventoryItemDto 
+            { 
+                Id = s.Id, 
+                Name = s.Name, 
+                Category = s.Category, 
+                OnHandCount = s.OnHandCount, 
+                MinimumThreshold = s.MinimumThreshold 
+            }).Take(5).ToList();
+
+            // Load pending scans
+            var scans = await Mediator.Send(new GetScanQueueQuery());
+            pendingScansCount = scans.Count(s => s.Status == Domain.ScanStatus.Pending || s.Status == Domain.ScanStatus.Processing);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading dashboard data");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    
+    private async Task Search()
+    {
+        await LoadDashboardData();
+    }
+    
+    private async Task DecrementItem(int itemId)
+    {
+        try
+        {
+            await Mediator.Send(new DecrementInventoryCommand(itemId));
+            await ToastService.ShowInfo("Item count decreased");
+            await LoadDashboardData();
+        }
+        catch (Exception ex)
+        {
+            await ToastService.ShowError("Error updating item");
+        }
+    }
+    
+    private async Task IncrementItem(int itemId)
+    {
+        try
+        {
+            await Mediator.Send(new IncrementInventoryCommand(itemId));
+            await ToastService.ShowSuccess("Item count increased");
+            await LoadDashboardData();
+        }
+        catch (Exception ex)
+        {
+            await ToastService.ShowError("Error updating item");
+        }
+    }
+}
     
     @if (totalPages > 1)
     {

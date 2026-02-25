@@ -21,6 +21,9 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Progr
 // HTTP Client for OpenFoodFacts API
 builder.Services.AddHttpClient<IProductLookupService, OpenFoodFactsLookupService>();
 
+// Toast Service
+builder.Services.AddScoped<ToastService>();
+
 // Background service for scan processing
 builder.Services.AddHostedService<ScanProcessingHostedService>();
 

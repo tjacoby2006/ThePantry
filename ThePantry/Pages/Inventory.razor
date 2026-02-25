@@ -1,7 +1,9 @@
 @page "/inventory"
 @using ThePantry.Application.Queries
 @using ThePantry.Domain
+@using ThePantry.Services
 @inject IMediator Mediator
+@inject ToastService ToastService
 
 <PageTitle>Inventory - The Pantry</PageTitle>
 
@@ -275,11 +277,12 @@ else
         try
         {
             await Mediator.Send(new DecrementInventoryCommand(itemId));
+            await ToastService.ShowInfo("Item count decreased");
             await LoadInventory();
         }
         catch (Exception ex)
         {
-            // Log error
+            await ToastService.ShowError("Error updating item");
             Console.WriteLine($"Error decrementing item {itemId}: {ex.Message}");
         }
     }
@@ -289,11 +292,12 @@ else
         try
         {
             await Mediator.Send(new IncrementInventoryCommand(itemId));
+            await ToastService.ShowSuccess("Item count increased");
             await LoadInventory();
         }
         catch (Exception ex)
         {
-            // Log error
+            await ToastService.ShowError("Error updating item");
             Console.WriteLine($"Error incrementing item {itemId}: {ex.Message}");
         }
     }
@@ -354,11 +358,13 @@ else
                 editingItem.MinimumThreshold,
                 editingItem.Upc
             ));
+            await ToastService.ShowSuccess($"{editingItem.Name} updated successfully");
             CloseEditModal();
             await LoadInventory();
         }
         catch (Exception ex)
         {
+            await ToastService.ShowError("Error updating item");
             Console.WriteLine($"Error updating item: {ex.Message}");
         }
     }
@@ -381,12 +387,15 @@ else
 
         try
         {
+            var name = itemToDelete.Name;
             await Mediator.Send(new DeleteInventoryItemCommand(itemToDelete.Id));
+            await ToastService.ShowWarning($"{name} deleted");
             CloseDeleteModal();
             await LoadInventory();
         }
         catch (Exception ex)
         {
+            await ToastService.ShowError("Error deleting item");
             Console.WriteLine($"Error deleting item: {ex.Message}");
         }
     }

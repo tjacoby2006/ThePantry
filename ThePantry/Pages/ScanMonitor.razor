@@ -2,8 +2,10 @@
 @using MediatR
 @using ThePantry.Application.Commands
 @using ThePantry.Application.Queries
+@using ThePantry.Services
 @inject IMediator Mediator
 @inject ILogger<ScanMonitor> Logger
+@inject ToastService ToastService
 
 <PageTitle>Scan Monitor - The Pantry</PageTitle>
 
@@ -272,12 +274,14 @@ else
                 selectedScan.Upc
             ));
             
+            await ToastService.ShowSuccess($"{reviewItem.Name} added to inventory");
             CloseReviewModal();
             await LoadQueue();
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error adding item from review");
+            Logger.LogError(ex, "Error submitting review");
+            await ToastService.ShowError("Error adding item");
         }
     }
     
