@@ -43,3 +43,5 @@ obj/
 # Angular
 .angular/
 dist/
+
+*.db*
