@@ -13,26 +13,35 @@
 
 <div class="row mb-4">
     <div class="col-md-4">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <h5 class="card-title">Total Items</h5>
-                <h2 class="card-text">@totalItemsCount</h2>
+        <div class="card stat-card text-center flex-column">
+            <div class="stat-icon bg-primary text-white mb-2">
+                <span class="oi oi-list"></span>
+            </div>
+            <div>
+                <div class="stat-label">Total Items</div>
+                <div class="stat-value">@totalItemsCount</div>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card bg-warning text-dark">
-            <div class="card-body">
-                <h5 class="card-title">Low Stock</h5>
-                <h2 class="card-text">@lowStockCount</h2>
+        <div class="card stat-card text-center flex-column">
+            <div class="stat-icon bg-warning text-dark mb-2">
+                <span class="oi oi-warning"></span>
+            </div>
+            <div>
+                <div class="stat-label">Low Stock</div>
+                <div class="stat-value">@lowStockCount</div>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <h5 class="card-title">Pending Scans</h5>
-                <h2 class="card-text">@pendingScansCount</h2>
+        <div class="card stat-card text-center flex-column">
+            <div class="stat-icon bg-info text-white mb-2">
+                <span class="oi oi-monitor"></span>
+            </div>
+            <div>
+                <div class="stat-label">Pending Scans</div>
+                <div class="stat-value">@pendingScansCount</div>
             </div>
         </div>
     </div>
@@ -40,52 +49,74 @@
 
 @if (lowStockItems != null && lowStockItems.Any())
 {
-    <div class="card mb-4 border-warning">
-        <div class="card-header bg-warning text-dark">
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Low Stock Alert</h5>
+            <span class="badge bg-danger">Action Required</span>
         </div>
         <div class="card-body p-0">
-            <ul class="list-group list-group-flush">
-                @foreach (var item in lowStockItems)
-                {
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>@item.Name</strong>
-                            <span class="text-muted ms-2">(@item.Category)</span>
-                        </div>
-                        <div>
-                            <span class="badge bg-danger rounded-pill me-2">@item.OnHandCount / @item.MinimumThreshold</span>
-                            <button class="btn btn-sm btn-outline-success" @onclick="() => IncrementItem(item.Id)">
-                                <span class="oi oi-plus"></span>
-                            </button>
-                        </div>
-                    </li>
-                }
-            </ul>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Category</th>
+                            <th>Stock</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in lowStockItems)
+                        {
+                            <tr>
+                                <td class="fw-bold">@item.Name</td>
+                                <td><span class="badge bg-light text-dark">@item.Category</span></td>
+                                <td>
+                                    <span class="text-danger fw-bold">@item.OnHandCount</span>
+                                    <span class="text-muted small">/ @item.MinimumThreshold</span>
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-success" @onclick="() => IncrementItem(item.Id)">
+                                        <span class="oi oi-plus"></span>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
-        <div class="card-footer text-end">
+        <div class="card-footer bg-light text-end">
             <a href="shopping-list" class="btn btn-sm btn-primary">View Shopping List</a>
         </div>
     </div>
 }
 
-<h3>Quick Inventory Search</h3>
-
-<div class="mb-3">
-    <div class="row g-2">
-        <div class="col-md-6">
-            <input type="text" class="form-control" placeholder="Search items..." @bind="searchTerm" @bind:event="oninput" />
-        </div>
-        <div class="col-md-4">
-            <select class="form-select" @bind="selectedCategory">
-                <option value="">All Categories</option>
-                <option value="Pantry">Pantry</option>
-                <option value="Refrigerator">Refrigerator</option>
-                <option value="Freezer">Freezer</option>
-            </select>
-        </div>
-        <div class="col-md-2">
-            <button class="btn btn-primary w-100" @onclick="Search">Search</button>
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Quick Inventory Search</h5>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0">
+                        <span class="oi oi-magnifying-glass text-muted"></span>
+                    </span>
+                    <input type="text" class="form-control border-start-0" placeholder="Search items..." @bind="searchTerm" @bind:event="oninput" />
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select class="form-select" @bind="selectedCategory">
+                    <option value="">All Categories</option>
+                    <option value="Pantry">Pantry</option>
+                    <option value="Refrigerator">Refrigerator</option>
+                    <option value="Freezer">Freezer</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" @onclick="Search">Search</button>
+            </div>
         </div>
     </div>
 </div>

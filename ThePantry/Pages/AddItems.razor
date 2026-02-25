@@ -264,12 +264,82 @@ else if (activeTab == "csv")
     
     private async Task AddManualItem()
     {
-        // ...existing code...
+        try
+        {
+            await Mediator.Send(new AddInventoryItemCommand(
+                manualItem.Name,
+                manualItem.Description,
+                manualItem.Category,
+                manualItem.OnHandCount,
+                manualItem.MinimumThreshold,
+                manualItem.Upc
+            ));
+
+            await ToastService.ShowSuccess($"Added {manualItem.Name} to inventory");
+            manualItem = new(); // Reset form
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error adding manual item");
+            await ToastService.ShowError("Error adding item: " + ex.Message);
+        }
     }
     
     private async Task HandleCsvUpload(InputFileChangeEventArgs e)
     {
-        // ...existing code...
+        csvMessage = "Uploading and processing...";
+        csvSuccess = false;
+        int successCount = 0;
+        int errorCount = 0;
+
+        try
+        {
+            using var stream = e.File.OpenReadStream();
+            using var reader = new System.IO.StreamReader(stream);
+            
+            // Skip header
+            var header = await reader.ReadLineAsync();
+            
+            while (!reader.EndOfStream)
+            {
+                var line = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                var parts = line.Split(',');
+                if (parts.Length < 1) continue;
+
+                try
+                {
+                    var name = parts[0].Trim();
+                    var description = parts.Length > 1 ? parts[1].Trim() : null;
+                    var category = parts.Length > 2 ? parts[2].Trim() : "Pantry";
+                    int.TryParse(parts.Length > 3 ? parts[3].Trim() : "1", out int onHand);
+                    int.TryParse(parts.Length > 4 ? parts[4].Trim() : "1", out int min);
+                    var upc = parts.Length > 5 ? parts[5].Trim() : null;
+
+                    await Mediator.Send(new AddInventoryItemCommand(
+                        name, description, category, onHand, min, upc
+                    ));
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Error processing CSV line: {Line}", line);
+                    errorCount++;
+                }
+            }
+
+            csvSuccess = true;
+            csvMessage = $"Successfully imported {successCount} items. Errors: {errorCount}";
+            await ToastService.ShowSuccess($"Imported {successCount} items");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error uploading CSV");
+            csvSuccess = false;
+            csvMessage = "Error uploading CSV: " + ex.Message;
+            await ToastService.ShowError("CSV upload failed");
+        }
     }
     
     private async Task QueueScan()

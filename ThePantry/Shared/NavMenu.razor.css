@@ -4,50 +4,52 @@
 
 .top-row {
     height: 3.5rem;
-    background-color: rgba(0,0,0,0.4);
+    background-color: rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
 }
 
 .navbar-brand {
-    font-size: 1.1rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: #fff !important;
 }
 
 .oi {
-    width: 2rem;
+    width: 1.5rem;
     font-size: 1.1rem;
-    vertical-align: text-top;
-    top: -2px;
+    margin-right: 0.75rem;
 }
 
 .nav-item {
-    font-size: 0.9rem;
-    padding-bottom: 0.5rem;
+    padding: 0.25rem 0.75rem;
 }
 
     .nav-item:first-of-type {
         padding-top: 1rem;
     }
 
-    .nav-item:last-of-type {
-        padding-bottom: 1rem;
-    }
-
     .nav-item ::deep a {
-        color: #d7d7d7;
-        border-radius: 4px;
-        height: 3rem;
+        color: #d1d5db;
+        border-radius: 0.5rem;
+        padding: 0.75rem 1rem;
         display: flex;
         align-items: center;
-        line-height: 3rem;
+        transition: all 0.2s ease-in-out;
+        text-decoration: none;
     }
 
 .nav-item ::deep a.active {
-    background-color: rgba(255,255,255,0.25);
+    background-color: #3b82f6;
     color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
-.nav-item ::deep a:hover {
-    background-color: rgba(255,255,255,0.1);
+.nav-item ::deep a:hover:not(.active) {
+    background-color: rgba(255, 255, 255, 0.1);
     color: white;
+    transform: translateX(4px);
 }
 
 @media (min-width: 641px) {

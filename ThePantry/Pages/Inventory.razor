@@ -11,93 +11,104 @@
 
 <h1>Inventory</h1>
 
-<div class="mb-3">
-    <div class="row g-2">
-        <div class="col-md-5">
-            <input type="text" class="form-control" placeholder="Search items..." @bind="searchTerm" @bind:event="oninput" />
-        </div>
-        <div class="col-md-3">
-            <select class="form-select" @bind="selectedCategory">
-                <option value="">All Categories</option>
-                <option value="Pantry">Pantry</option>
-                <option value="Refrigerator">Refrigerator</option>
-                <option value="Freezer">Freezer</option>
-            </select>
-        </div>
-        <div class="col-md-2">
-            <button class="btn btn-primary w-100" @onclick="Search">Search</button>
-        </div>
-        <div class="col-md-2">
-            <button class="btn btn-outline-secondary w-100" @onclick="ExportToCsv">
-                <span class="oi oi-share-boxed"></span> Export
-            </button>
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0">
+                        <span class="oi oi-magnifying-glass text-muted"></span>
+                    </span>
+                    <input type="text" class="form-control border-start-0" placeholder="Search items..." @bind="searchTerm" @bind:event="oninput" />
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" @bind="selectedCategory">
+                    <option value="">All Categories</option>
+                    <option value="Pantry">Pantry</option>
+                    <option value="Refrigerator">Refrigerator</option>
+                    <option value="Freezer">Freezer</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" @onclick="Search">Search</button>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary w-100" @onclick="ExportToCsv">
+                    <span class="oi oi-share-boxed"></span> Export
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
 @if (isLoading)
 {
-    <div class="text-center">
-        <div class="spinner-border" role="status">
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>
     </div>
 }
 else if (inventoryItems == null || inventoryItems.Count == 0)
 {
-    <div class="alert alert-info">
-        No inventory items found.
+    <div class="card text-center py-5">
+        <div class="card-body">
+            <span class="oi oi-info display-4 text-muted mb-3"></span>
+            <p class="text-muted">No inventory items found matching your criteria.</p>
+        </div>
     </div>
 }
 else
 {
-    <div class="table-responsive">
-        <table class="table table-striped table-hover">
-            <thead class="table-dark">
-                <tr>
-                    <th @onclick='() => Sort("name")' style="cursor:pointer">
-                        Name @GetSortIcon("name")
-                    </th>
-                    <th @onclick='() => Sort("category")' style="cursor:pointer">
-                        Category @GetSortIcon("category")
-                    </th>
-                    <th @onclick='() => Sort("onhand")' style="cursor:pointer" class="text-center">
-                        On Hand @GetSortIcon("onhand")
-                    </th>
-                    <th @onclick='() => Sort("min")' style="cursor:pointer" class="text-center">
-                        Min @GetSortIcon("min")
-                    </th>
-                    <th class="text-center">Status</th>
-                    <th class="text-center">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in inventoryItems)
-                {
-                    <tr class="@(item.IsBelowThreshold ? "table-warning" : "")">
-                        <td>
-                            <strong>@item.Name</strong>
-                            @if (!string.IsNullOrEmpty(item.Description))
-                            {
-                                <br /><small class="text-muted">@item.Description</small>
-                            }
-                        </td>
-                        <td>@item.Category</td>
-                        <td class="text-center">@item.OnHandCount</td>
-                        <td class="text-center">@item.MinimumThreshold</td>
-                        <td class="text-center">
-                            @if (item.IsBelowThreshold)
-                            {
-                                <span class="badge bg-warning text-dark">Low Stock</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-success">In Stock</span>
-                            }
-                        </td>
-                        <td class="text-center">
-                            <div class="btn-group" role="group">
-                                <a href="inventory/details/@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th @onclick='() => Sort("name")' style="cursor:pointer">
+                            Name @GetSortIcon("name")
+                        </th>
+                        <th @onclick='() => Sort("category")' style="cursor:pointer">
+                            Category @GetSortIcon("category")
+                        </th>
+                        <th @onclick='() => Sort("onhand")' style="cursor:pointer" class="text-center">
+                            On Hand @GetSortIcon("onhand")
+                        </th>
+                        <th @onclick='() => Sort("min")' style="cursor:pointer" class="text-center">
+                            Min @GetSortIcon("min")
+                        </th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in inventoryItems)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-bold">@item.Name</div>
+                                @if (!string.IsNullOrEmpty(item.Description))
+                                {
+                                    <div class="text-muted small">@item.Description</div>
+                                }
+                            </td>
+                            <td><span class="badge bg-light text-dark">@item.Category</span></td>
+                            <td class="text-center fw-bold">@item.OnHandCount</td>
+                            <td class="text-center text-muted">@item.MinimumThreshold</td>
+                            <td class="text-center">
+                                @if (item.IsBelowThreshold)
+                                {
+                                    <span class="badge bg-warning text-dark">Low Stock</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">In Stock</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group" role="group">
+                                    <a href="inventory/details/@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
                                     <span class="oi oi-eye"></span>
                                 </a>
                                 <button class="btn btn-sm btn-outline-danger" @onclick="() => DecrementItem(item.Id)" title="Use Item">
@@ -215,6 +226,7 @@ else
             </ul>
         </nav>
     }
+</div>
 }
 
 @code {
