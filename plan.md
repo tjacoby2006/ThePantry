@@ -27,5 +27,5 @@
 - [x] Implement database backup/restore.
 
 ### 3. Advanced Features
-- [ ] Add "Manual Addition" to Shopping List for items not in inventory.
-- [ ] Implement usage history tracking (when items are decremented).
+- [x] Add "Manual Addition" to Shopping List for items not in inventory.
+- [x] Implement usage history tracking (when items are decremented).

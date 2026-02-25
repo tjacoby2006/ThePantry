@@ -1,67 +1,99 @@
 @page "/inventory/details/{id:int}"
 @using ThePantry.Application.Queries
 @using ThePantry.Domain
+@using ThePantry.Services
 @inject IMediator Mediator
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
 
-<h3>Inventory Item Details</h3>
+<PageTitle>Details: @(inventoryItem?.Name ?? "Item") - The Pantry</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Inventory Item Details</h3>
+    <button class="btn btn-outline-secondary" @onclick='() => NavigationManager.NavigateTo("inventory")'>
+        <span class="oi oi-arrow-left"></span> Back to Inventory
+    </button>
+</div>
 
 @if (isLoading)
 {
-    <p>Loading...</p>
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
 }
-else if (inventoryItem == null)
+else if (inventoryItem == null || inventoryItem.Id == 0)
 {
-    <p>Inventory item not found.</p>
+    <div class="alert alert-danger">
+        Inventory item not found.
+    </div>
 }
 else
 {
     <div class="row">
-        <div class="col-md-8">
-            <div class="card">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Item Information</h5>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title">@inventoryItem.Name</h5>
-                    <p class="card-text">@inventoryItem.Description</p>
-                    <p><strong>Category:</strong> @inventoryItem.Category</p>
-                    <p><strong>UPC:</strong> @inventoryItem.Upc</p>
-                    <p><strong>On Hand:</strong> @inventoryItem.OnHandCount</p>
-                    <p><strong>Minimum Threshold:</strong> @inventoryItem.MinimumThreshold</p>
-                    <p><strong>Deficit:</strong> @inventoryItem.Deficit</p>
-                    <p><strong>Below Threshold:</strong> @(inventoryItem.IsBelowThreshold ? "Yes" : "No")</p>
+                    <h4 class="card-title">@inventoryItem.Name</h4>
+                    <p class="text-muted">@inventoryItem.Description</p>
+                    <hr />
+                    <div class="mb-2"><strong>Category:</strong> <span class="badge bg-info">@inventoryItem.Category</span></div>
+                    <div class="mb-2"><strong>UPC:</strong> <code>@(string.IsNullOrEmpty(inventoryItem.Upc) ? "N/A" : inventoryItem.Upc)</code></div>
+                    <div class="mb-2"><strong>On Hand:</strong> <span class="h5 @(inventoryItem.IsBelowThreshold ? "text-danger" : "text-success")">@inventoryItem.OnHandCount</span></div>
+                    <div class="mb-2"><strong>Minimum:</strong> @inventoryItem.MinimumThreshold</div>
+                    <div class="mb-2"><strong>Status:</strong> 
+                        @if (inventoryItem.IsBelowThreshold)
+                        {
+                            <span class="badge bg-warning text-dark">Low Stock</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success">In Stock</span>
+                        }
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <h4>Usage History</h4>
-            @if (usageHistory.Count == 0)
-            {
-                <p>No usage history available.</p>
-            }
-            else
-            {
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Quantity Used</th>
-                                <th>Timestamp</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var history in usageHistory)
-                            {
-                                <tr>
-                                    <td>@history.QuantityUsed</td>
-                                    <td>@history.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Usage History</h5>
+                    <span class="badge bg-light text-dark">Total Used: @totalUsageCount</span>
                 </div>
-                <p><strong>Total Usage Count:</strong> @totalUsageCount</p>
-            }
+                <div class="card-body p-0">
+                    @if (usageHistory.Count == 0)
+                    {
+                        <div class="p-3 text-muted">No usage history available.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date & Time</th>
+                                        <th class="text-center">Quantity Used</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var history in usageHistory)
+                                    {
+                                        <tr>
+                                            <td>@history.Timestamp.ToLocalTime().ToString("f")</td>
+                                            <td class="text-center"><span class="badge bg-secondary">-@history.QuantityUsed</span></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
         </div>
     </div>
 }

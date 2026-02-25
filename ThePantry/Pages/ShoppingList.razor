@@ -13,8 +13,11 @@
 
 <div class="row mb-3">
     <div class="col">
-        <button class="btn btn-primary" @onclick="LoadShoppingList">
+        <button class="btn btn-primary me-2" @onclick="LoadShoppingList">
             <span class="oi oi-reload"></span> Refresh
+        </button>
+        <button class="btn btn-outline-primary" @onclick="ShowManualAddModal">
+            <span class="oi oi-plus"></span> Add Custom Item
         </button>
     </div>
 </div>
@@ -108,6 +111,47 @@ else
     <div class="modal-backdrop fade show"></div>
 }
 
+@if (showManualAddModal)
+{
+    <div class="modal fade show" style="display:block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Custom Shopping Item</h5>
+                    <button type="button" class="btn-close" @onclick="CloseManualAddModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">This will add a temporary item to your shopping list by creating a new inventory item with 0 stock.</p>
+                    <EditForm Model="manualItem" OnValidSubmit="AddManualItem">
+                        <DataAnnotationsValidator />
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <InputText class="form-control" @bind-Value="manualItem.Name" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Category</label>
+                            <InputSelect class="form-select" @bind-Value="manualItem.Category">
+                                <option value="Pantry">Pantry</option>
+                                <option value="Refrigerator">Refrigerator</option>
+                                <option value="Freezer">Freezer</option>
+                            </InputSelect>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Quantity Needed</label>
+                            <InputNumber class="form-control" @bind-Value="manualItem.MinimumThreshold" />
+                        </div>
+                        <div class="modal-footer px-0 pb-0">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseManualAddModal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Add to List</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
 @code {
     private List<ShoppingListItemDto>? shoppingList;
     private bool isLoading = true;
@@ -115,6 +159,16 @@ else
     private bool showPurchasedModal = false;
     private ShoppingListItemDto? itemToPurchase;
     private int purchaseQuantity = 1;
+
+    private bool showManualAddModal = false;
+    private ManualItemModel manualItem = new();
+
+    private class ManualItemModel
+    {
+        public string Name { get; set; } = "";
+        public string Category { get; set; } = "Pantry";
+        public int MinimumThreshold { get; set; } = 1;
+    }
     
     protected override async Task OnInitializedAsync()
     {
@@ -135,6 +189,38 @@ else
         finally
         {
             isLoading = false;
+        }
+    }
+
+    private void ShowManualAddModal()
+    {
+        manualItem = new ManualItemModel();
+        showManualAddModal = true;
+    }
+
+    private void CloseManualAddModal()
+    {
+        showManualAddModal = false;
+    }
+
+    private async Task AddManualItem()
+    {
+        try
+        {
+            await Mediator.Send(new AddInventoryItemCommand(
+                manualItem.Name,
+                null,
+                manualItem.Category,
+                0, // On hand is 0 so it shows up in shopping list
+                manualItem.MinimumThreshold
+            ));
+            await ToastService.ShowSuccess($"{manualItem.Name} added to shopping list");
+            CloseManualAddModal();
+            await LoadShoppingList();
+        }
+        catch (Exception ex)
+        {
+            await ToastService.ShowError("Error adding item");
         }
     }
 
