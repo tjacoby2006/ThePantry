@@ -31,6 +31,7 @@ db.json
 # .NET
 bin/
 obj/
+ThePantry/wwwroot/uploads/
 *.dll
 !vector.dll
 !vector.lib

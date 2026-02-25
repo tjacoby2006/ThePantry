@@ -18,6 +18,7 @@ public class ScanQueueItem
     public int? LinkedInventoryItemId { get; set; }
     public string? ProductName { get; set; }
     public string? ProductDescription { get; set; }
+    public string? ImagePath { get; set; }
     
     public InventoryItem? LinkedInventoryItem { get; set; }
 }

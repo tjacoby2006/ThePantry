@@ -2,6 +2,7 @@
 @using MediatR
 @using ThePantry.Application.Commands
 @using ThePantry.Services
+@using Microsoft.JSInterop
 @implements IAsyncDisposable
 @inject IMediator Mediator
 @inject ILogger<DecrementItems> Logger
@@ -23,7 +24,7 @@
                     <input type="text" class="form-control" placeholder="Enter UPC code manually..." @bind="scanUpc" @bind:event="oninput" />
                 </div>
                 <div class="col-md-2 col-2">
-                    <button class="btn btn-danger w-100" @onclick="DecrementByUpc" disabled="@string.IsNullOrWhiteSpace(scanUpc)">
+                    <button type="button" class="btn btn-danger w-100" @onclick="DecrementByUpc" disabled="@string.IsNullOrWhiteSpace(scanUpc)">
                         Use
                     </button>
                 </div>
@@ -79,6 +80,10 @@
             await JS.InvokeVoidAsync("barcodeScanner.stop");
             isScannerRunning = false;
         }
+        catch (JSDisconnectedException)
+        {
+            isScannerRunning = false;
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to stop scanner");
@@ -86,10 +91,11 @@
     }
 
     [JSInvokable]
-    public async Task HandleBarcodeDetected(string code)
+    public async Task HandleBarcodeDetected(string code, string? imageData)
     {
+        Logger.LogInformation("Barcode detected for decrement: {Code}", code);
         scanUpc = code;
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
         await DecrementByUpc();
     }
 

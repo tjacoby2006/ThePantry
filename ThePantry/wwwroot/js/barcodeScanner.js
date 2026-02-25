@@ -23,11 +23,6 @@ window.barcodeScanner = {
                         lastScannedCode = decodedText;
                         lastScannedTime = now;
                         
-                        // Visual feedback
-                        const element = document.getElementById(elementId);
-                        element.style.border = "5px solid #28a745";
-                        setTimeout(() => element.style.border = "none", 500);
-
                         // Audio feedback
                         const playBeep = () => {
                             try {
@@ -55,7 +50,42 @@ window.barcodeScanner = {
                             playBeep();
                         }
 
-                        dotNetHelper.invokeMethodAsync('HandleBarcodeDetected', decodedText);
+                        // Capture image from video stream
+                        let imageData = null;
+                        try {
+                            const video = document.querySelector(`#${elementId} video`);
+                            if (video) {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = video.videoWidth;
+                                canvas.height = video.videoHeight;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                // Use lower quality and smaller size to reduce payload
+                                imageData = canvas.toDataURL('image/jpeg', 0.3);
+                            }
+                        } catch (e) {
+                            console.error("Failed to capture image", e);
+                        }
+
+                        console.log("Barcode detected:", decodedText);
+                        dotNetHelper.invokeMethodAsync('HandleBarcodeDetected', decodedText, imageData)
+                            .then(() => {
+                                console.log("Successfully invoked HandleBarcodeDetected");
+                                // Visual feedback
+                                const element = document.getElementById(elementId);
+                                if (element) {
+                                    element.style.border = "5px solid #28a745";
+                                    setTimeout(() => element.style.border = "none", 500);
+                                }
+                            })
+                            .catch(err => {
+                                console.error("Error invoking HandleBarcodeDetected:", err);
+                                const element = document.getElementById(elementId);
+                                if (element) {
+                                    element.style.border = "5px solid #dc3545";
+                                    setTimeout(() => element.style.border = "none", 500);
+                                }
+                            });
                     }
                 },
                 (errorMessage) => {

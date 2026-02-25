@@ -101,7 +101,12 @@ public class ScanProcessingHostedService : BackgroundService
                     }
                     else
                     {
+                        // Increment existing item count
+                        existingItem.OnHandCount++;
+                        existingItem.LastModifiedDate = DateTime.UtcNow;
                         scanItem.LinkedInventoryItemId = existingItem.Id;
+                        
+                        _logger.LogInformation("Incremented OnHandCount for existing item {ItemName} (UPC: {Upc})", existingItem.Name, scanItem.Upc);
                     }
                 }
                 else

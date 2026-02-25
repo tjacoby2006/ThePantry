@@ -19,6 +19,7 @@ public class ScanQueueItemDto
     public int? LinkedInventoryItemId { get; set; }
     public string? ProductName { get; set; }
     public string? ProductDescription { get; set; }
+    public string? ImagePath { get; set; }
 }
 
 public class GetScanQueueHandler : IRequestHandler<GetScanQueueQuery, List<ScanQueueItemDto>>
@@ -50,7 +51,8 @@ public class GetScanQueueHandler : IRequestHandler<GetScanQueueQuery, List<ScanQ
                 Timestamp = s.Timestamp,
                 LinkedInventoryItemId = s.LinkedInventoryItemId,
                 ProductName = s.ProductName,
-                ProductDescription = s.ProductDescription
+                ProductDescription = s.ProductDescription,
+                ImagePath = s.ImagePath
             })
             .ToListAsync(cancellationToken);
     }

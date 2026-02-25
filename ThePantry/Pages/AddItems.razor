@@ -3,6 +3,7 @@
 @using ThePantry.Application.Commands
 @using ThePantry.Application.Queries
 @using ThePantry.Services
+@using Microsoft.JSInterop
 @implements IAsyncDisposable
 @inject IMediator Mediator
 @inject ILogger<AddItems> Logger
@@ -43,7 +44,7 @@
                         <input type="text" class="form-control" placeholder="Enter UPC code manually..." @bind="scanUpc" @bind:event="oninput" />
                     </div>
                     <div class="col-2">
-                        <button class="btn btn-primary w-100" @onclick="QueueScan" disabled="@string.IsNullOrWhiteSpace(scanUpc)">
+                        <button type="button" class="btn btn-primary w-100" @onclick="QueueScan" disabled="@string.IsNullOrWhiteSpace(scanUpc)">
                             Scan
                         </button>
                     </div>
@@ -219,7 +220,13 @@ else if (activeTab == "csv")
         
         try
         {
+            // Check if we can still call JS (prevents error on page navigation/dispose)
             await JS.InvokeVoidAsync("barcodeScanner.stop");
+            isScannerRunning = false;
+        }
+        catch (JSDisconnectedException)
+        {
+            // Ignore disconnection errors during disposal
             isScannerRunning = false;
         }
         catch (Exception ex)
@@ -229,14 +236,15 @@ else if (activeTab == "csv")
     }
 
     [JSInvokable]
-    public async Task HandleBarcodeDetected(string code)
+    public async Task HandleBarcodeDetected(string code, string? imageData)
     {
         try
         {
-            await Mediator.Send(new QueueScanCommand(code));
+            Logger.LogInformation("Barcode detected: {Code}", code);
+            await Mediator.Send(new QueueScanCommand(code, ImageData: imageData));
             await ToastService.ShowSuccess($"Scanned: {code}");
             await LoadRecentScans();
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
         {
