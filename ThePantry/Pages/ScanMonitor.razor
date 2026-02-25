@@ -279,13 +279,11 @@ else
         ));
 
         // Update scan item status
-        selectedItem.Status = ScanStatus.Resolved;
-        selectedItem.LinkedInventoryItemId = item.Id;
-        
-        // Save via context
-        using var scope = ((IEnumerable<object>)Mediator).GetType().Assembly;
-        // This is handled by the background service, just close modal for now
-        // In a real app, we'd update via a command
+        await Mediator.Send(new UpdateScanQueueItemCommand(
+            selectedItem.Id,
+            ScanStatus.Resolved,
+            item.Id
+        ));
         
         Logger.LogInformation("Manually added item from failed scan: {Name}", item.Name);
         
