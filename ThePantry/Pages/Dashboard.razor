@@ -1,0 +1,199 @@
+@page "/"
+@using MediatR
+@using ThePantry.Application.Commands
+@using ThePantry.Application.Queries
+@inject IMediator Mediator
+@inject ILogger<Dashboard> Logger
+
+<PageTitle>Dashboard - The Pantry</PageTitle>
+
+<h1>Pantry Inventory</h1>
+
+<div class="mb-3">
+    <div class="row g-2">
+        <div class="col-md-6">
+            <input type="text" class="form-control" placeholder="Search items..." @bind="searchTerm" @bind:event="oninput" />
+        </div>
+        <div class="col-md-4">
+            <select class="form-select" @bind="selectedCategory">
+                <option value="">All Categories</option>
+                <option value="Pantry">Pantry</option>
+                <option value="Refrigerator">Refrigerator</option>
+                <option value="Freezer">Freezer</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-primary w-100" @onclick="Search">Search</button>
+        </div>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (inventoryItems == null || inventoryItems.Count == 0)
+{
+    <div class="alert alert-info">
+        No inventory items found. Go to "Add Items" to add your first item!
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th class="text-center">On Hand</th>
+                    <th class="text-center">Min</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in inventoryItems)
+                {
+                    <tr class="@(item.IsBelowThreshold ? "table-warning" : "")">
+                        <td>
+                            <strong>@item.Name</strong>
+                            @if (!string.IsNullOrEmpty(item.Description))
+                            {
+                                <br /><small class="text-muted">@item.Description</small>
+                            }
+                        </td>
+                        <td>@item.Category</td>
+                        <td class="text-center">@item.OnHandCount</td>
+                        <td class="text-center">@item.MinimumThreshold</td>
+                        <td class="text-center">
+                            @if (item.IsBelowThreshold)
+                            {
+                                <span class="badge bg-warning text-dark">Low Stock</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">In Stock</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group" role="group">
+                                <a href="inventory/details/@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                    <span class="oi oi-eye"></span>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DecrementItem(item.Id)" title="Use Item">
+                                    <span class="oi oi-minus"></span>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" @onclick="() => IncrementItem(item.Id)" title="Add Item">
+                                    <span class="oi oi-plus"></span>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    
+    @if (totalPages > 1)
+    {
+        <nav>
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => GoToPage(currentPage - 1)">Previous</button>
+                </li>
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    <li class="page-item @(currentPage == i ? "active" : "")">
+                        <button class="page-link" @onclick="() => GoToPage(i)">@i</button>
+                    </li>
+                }
+                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => GoToPage(currentPage + 1)">Next</button>
+                </li>
+            </ul>
+        </nav>
+    }
+}
+
+@code {
+    private List<InventoryItemDto>? inventoryItems;
+    private string searchTerm = "";
+    private string selectedCategory = "";
+    private int currentPage = 1;
+    private int totalPages = 1;
+    private bool isLoading = true;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInventory();
+    }
+    
+    private async Task LoadInventory()
+    {
+        isLoading = true;
+        try
+        {
+            var result = await Mediator.Send(new GetInventoryListQuery(
+                SearchTerm: string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm,
+                Category: string.IsNullOrWhiteSpace(selectedCategory) ? null : selectedCategory,
+                Page: currentPage,
+                PageSize: 20
+            ));
+            
+            inventoryItems = result.Items;
+            totalPages = result.TotalPages;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading inventory");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    
+    private async Task Search()
+    {
+        currentPage = 1;
+        await LoadInventory();
+    }
+    
+    private async Task GoToPage(int page)
+    {
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        await LoadInventory();
+    }
+    
+    private async Task DecrementItem(int itemId)
+    {
+        try
+        {
+            await Mediator.Send(new DecrementInventoryCommand(itemId));
+            await LoadInventory();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error decrementing item {ItemId}", itemId);
+        }
+    }
+    
+    private async Task IncrementItem(int itemId)
+    {
+        try
+        {
+            await Mediator.Send(new IncrementInventoryCommand(itemId));
+            await LoadInventory();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error incrementing item {ItemId}", itemId);
+        }
+    }
+}

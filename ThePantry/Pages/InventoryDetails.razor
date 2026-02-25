@@ -1,0 +1,96 @@
+@page "/inventory/details/{id:int}"
+@using ThePantry.Application.Queries
+@using ThePantry.Domain
+@inject IMediator Mediator
+
+<h3>Inventory Item Details</h3>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (inventoryItem == null)
+{
+    <p>Inventory item not found.</p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">@inventoryItem.Name</h5>
+                    <p class="card-text">@inventoryItem.Description</p>
+                    <p><strong>Category:</strong> @inventoryItem.Category</p>
+                    <p><strong>UPC:</strong> @inventoryItem.Upc</p>
+                    <p><strong>On Hand:</strong> @inventoryItem.OnHandCount</p>
+                    <p><strong>Minimum Threshold:</strong> @inventoryItem.MinimumThreshold</p>
+                    <p><strong>Deficit:</strong> @inventoryItem.Deficit</p>
+                    <p><strong>Below Threshold:</strong> @(inventoryItem.IsBelowThreshold ? "Yes" : "No")</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <h4>Usage History</h4>
+            @if (usageHistory.Count == 0)
+            {
+                <p>No usage history available.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Quantity Used</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var history in usageHistory)
+                            {
+                                <tr>
+                                    <td>@history.QuantityUsed</td>
+                                    <td>@history.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <p><strong>Total Usage Count:</strong> @totalUsageCount</p>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+    
+    private bool isLoading = true;
+    private InventoryItemDto? inventoryItem;
+    private List<UsageHistoryDto> usageHistory = new();
+    private int totalUsageCount = 0;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var result = await Mediator.Send(new GetInventoryWithUsageHistoryQuery(id));
+            inventoryItem = result.Item;
+            usageHistory = result.UsageHistory;
+            totalUsageCount = result.TotalUsageCount;
+        }
+        catch (Exception ex)
+        {
+            // Log error
+            Console.WriteLine($"Error loading inventory details: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

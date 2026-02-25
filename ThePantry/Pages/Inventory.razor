@@ -1,0 +1,393 @@
+@page "/inventory"
+@using ThePantry.Application.Queries
+@using ThePantry.Domain
+@inject IMediator Mediator
+
+<PageTitle>Inventory - The Pantry</PageTitle>
+
+<h1>Inventory</h1>
+
+<div class="mb-3">
+    <div class="row g-2">
+        <div class="col-md-6">
+            <input type="text" class="form-control" placeholder="Search items..." @bind="searchTerm" @bind:event="oninput" />
+        </div>
+        <div class="col-md-4">
+            <select class="form-select" @bind="selectedCategory">
+                <option value="">All Categories</option>
+                <option value="Pantry">Pantry</option>
+                <option value="Refrigerator">Refrigerator</option>
+                <option value="Freezer">Freezer</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-primary w-100" @onclick="Search">Search</button>
+        </div>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (inventoryItems == null || inventoryItems.Count == 0)
+{
+    <div class="alert alert-info">
+        No inventory items found.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th @onclick='() => Sort("name")' style="cursor:pointer">
+                        Name @GetSortIcon("name")
+                    </th>
+                    <th @onclick='() => Sort("category")' style="cursor:pointer">
+                        Category @GetSortIcon("category")
+                    </th>
+                    <th @onclick='() => Sort("onhand")' style="cursor:pointer" class="text-center">
+                        On Hand @GetSortIcon("onhand")
+                    </th>
+                    <th @onclick='() => Sort("min")' style="cursor:pointer" class="text-center">
+                        Min @GetSortIcon("min")
+                    </th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in inventoryItems)
+                {
+                    <tr class="@(item.IsBelowThreshold ? "table-warning" : "")">
+                        <td>
+                            <strong>@item.Name</strong>
+                            @if (!string.IsNullOrEmpty(item.Description))
+                            {
+                                <br /><small class="text-muted">@item.Description</small>
+                            }
+                        </td>
+                        <td>@item.Category</td>
+                        <td class="text-center">@item.OnHandCount</td>
+                        <td class="text-center">@item.MinimumThreshold</td>
+                        <td class="text-center">
+                            @if (item.IsBelowThreshold)
+                            {
+                                <span class="badge bg-warning text-dark">Low Stock</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">In Stock</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group" role="group">
+                                <a href="inventory/details/@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                    <span class="oi oi-eye"></span>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DecrementItem(item.Id)" title="Use Item">
+                                    <span class="oi oi-minus"></span>
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" @onclick="() => IncrementItem(item.Id)" title="Add Item">
+                                    <span class="oi oi-plus"></span>
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => EditItem(item)" title="Edit Item">
+                                    <span class="oi oi-pencil"></span>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(item)" title="Delete Item">
+                                    <span class="oi oi-trash"></span>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    
+    @if (showEditModal && editingItem != null)
+    {
+        <div class="modal fade show" style="display:block" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Item</h5>
+                        <button type="button" class="btn-close" @onclick="CloseEditModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <EditForm Model="editingItem" OnValidSubmit="UpdateItem">
+                            <DataAnnotationsValidator />
+                            <div class="mb-3">
+                                <label class="form-label">Name</label>
+                                <InputText class="form-control" @bind-Value="editingItem.Name" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Category</label>
+                                <InputSelect class="form-select" @bind-Value="editingItem.Category">
+                                    <option value="Pantry">Pantry</option>
+                                    <option value="Refrigerator">Refrigerator</option>
+                                    <option value="Freezer">Freezer</option>
+                                </InputSelect>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <InputText class="form-control" @bind-Value="editingItem.Description" />
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">On Hand</label>
+                                    <InputNumber class="form-control" @bind-Value="editingItem.OnHandCount" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Min Threshold</label>
+                                    <InputNumber class="form-control" @bind-Value="editingItem.MinimumThreshold" />
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">UPC</label>
+                                <InputText class="form-control" @bind-Value="editingItem.Upc" />
+                            </div>
+                            <div class="modal-footer px-0 pb-0">
+                                <button type="button" class="btn btn-secondary" @onclick="CloseEditModal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show"></div>
+    }
+
+    @if (showDeleteModal && itemToDelete != null)
+    {
+        <div class="modal fade show" style="display:block" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Delete</h5>
+                        <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to delete <strong>@itemToDelete.Name</strong>?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                        <button type="button" class="btn btn-danger" @onclick="DeleteItem">Delete</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show"></div>
+    }
+    
+    @if (totalPages > 1)
+    {
+        <nav>
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => GoToPage(currentPage - 1)">Previous</button>
+                </li>
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    <li class="page-item @(currentPage == i ? "active" : "")">
+                        <button class="page-link" @onclick="() => GoToPage(i)">@i</button>
+                    </li>
+                }
+                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => GoToPage(currentPage + 1)">Next</button>
+                </li>
+            </ul>
+        </nav>
+    }
+}
+
+@code {
+    private List<InventoryItemDto>? inventoryItems;
+    private string searchTerm = "";
+    private string selectedCategory = "";
+    private int currentPage = 1;
+    private int totalPages = 1;
+    private bool isLoading = true;
+
+    private string sortBy = "name";
+    private bool sortDescending = false;
+
+    private bool showEditModal = false;
+    private InventoryItemDto? editingItem;
+    private bool showDeleteModal = false;
+    private InventoryItemDto? itemToDelete;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInventory();
+    }
+    
+    private async Task LoadInventory()
+    {
+        isLoading = true;
+        try
+        {
+            var result = await Mediator.Send(new GetInventoryListQuery(
+                SearchTerm: string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm,
+                Category: string.IsNullOrWhiteSpace(selectedCategory) ? null : selectedCategory,
+                Page: currentPage,
+                PageSize: 20,
+                SortBy: sortBy,
+                SortDescending: sortDescending
+            ));
+            
+            inventoryItems = result.Items;
+            totalPages = result.TotalPages;
+        }
+        catch (Exception ex)
+        {
+            // Log error
+            Console.WriteLine($"Error loading inventory: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    
+    private async Task Search()
+    {
+        currentPage = 1;
+        await LoadInventory();
+    }
+    
+    private async Task GoToPage(int page)
+    {
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        await LoadInventory();
+    }
+    
+    private async Task DecrementItem(int itemId)
+    {
+        try
+        {
+            await Mediator.Send(new DecrementInventoryCommand(itemId));
+            await LoadInventory();
+        }
+        catch (Exception ex)
+        {
+            // Log error
+            Console.WriteLine($"Error decrementing item {itemId}: {ex.Message}");
+        }
+    }
+    
+    private async Task IncrementItem(int itemId)
+    {
+        try
+        {
+            await Mediator.Send(new IncrementInventoryCommand(itemId));
+            await LoadInventory();
+        }
+        catch (Exception ex)
+        {
+            // Log error
+            Console.WriteLine($"Error incrementing item {itemId}: {ex.Message}");
+        }
+    }
+
+    private async Task Sort(string column)
+    {
+        if (sortBy == column)
+        {
+            sortDescending = !sortDescending;
+        }
+        else
+        {
+            sortBy = column;
+            sortDescending = false;
+        }
+        await LoadInventory();
+    }
+
+    private string GetSortIcon(string column)
+    {
+        if (sortBy != column) return "";
+        return sortDescending ? "▼" : "▲";
+    }
+
+    private void EditItem(InventoryItemDto item)
+    {
+        editingItem = new InventoryItemDto
+        {
+            Id = item.Id,
+            Name = item.Name,
+            Description = item.Description,
+            Category = item.Category,
+            OnHandCount = item.OnHandCount,
+            MinimumThreshold = item.MinimumThreshold,
+            Upc = item.Upc
+        };
+        showEditModal = true;
+    }
+
+    private void CloseEditModal()
+    {
+        showEditModal = false;
+        editingItem = null;
+    }
+
+    private async Task UpdateItem()
+    {
+        if (editingItem == null) return;
+
+        try
+        {
+            await Mediator.Send(new UpdateInventoryItemCommand(
+                editingItem.Id,
+                editingItem.Name,
+                editingItem.Description,
+                editingItem.Category,
+                editingItem.OnHandCount,
+                editingItem.MinimumThreshold,
+                editingItem.Upc
+            ));
+            CloseEditModal();
+            await LoadInventory();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating item: {ex.Message}");
+        }
+    }
+
+    private void ConfirmDelete(InventoryItemDto item)
+    {
+        itemToDelete = item;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        itemToDelete = null;
+    }
+
+    private async Task DeleteItem()
+    {
+        if (itemToDelete == null) return;
+
+        try
+        {
+            await Mediator.Send(new DeleteInventoryItemCommand(itemToDelete.Id));
+            CloseDeleteModal();
+            await LoadInventory();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting item: {ex.Message}");
+        }
+    }
+}

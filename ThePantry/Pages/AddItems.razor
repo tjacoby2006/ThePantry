@@ -1,0 +1,294 @@
+@page "/add-items"
+@using MediatR
+@using ThePantry.Application.Commands
+@using ThePantry.Application.Queries
+@inject IMediator Mediator
+@inject ILogger<AddItems> Logger
+
+<PageTitle>Add Items - The Pantry</PageTitle>
+
+<h1>Add Inventory Items</h1>
+
+<ul class="nav nav-tabs mb-3" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link @(activeTab == "manual" ? "active" : "")" @onclick="SetTabManual">
+            Manual Entry
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link @(activeTab == "csv" ? "active" : "")" @onclick="SetTabCsv">
+            CSV Upload
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link @(activeTab == "scan" ? "active" : "")" @onclick="SetTabScan">
+            Scanner
+        </button>
+    </li>
+</ul>
+
+@if (activeTab == "manual")
+{
+    <div class="card">
+        <div class="card-body">
+            <EditForm Model="manualItem" OnValidSubmit="AddManualItem">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Name *</label>
+                        <InputText class="form-control" @bind-Value="manualItem.Name" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Category</label>
+                        <InputSelect class="form-select" @bind-Value="manualItem.Category">
+                            <option value="Pantry">Pantry</option>
+                            <option value="Refrigerator">Refrigerator</option>
+                            <option value="Freezer">Freezer</option>
+                        </InputSelect>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Description</label>
+                        <InputText class="form-control" @bind-Value="manualItem.Description" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">On Hand Count</label>
+                        <InputNumber class="form-control" @bind-Value="manualItem.OnHandCount" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Minimum Threshold</label>
+                        <InputNumber class="form-control" @bind-Value="manualItem.MinimumThreshold" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">UPC (optional)</label>
+                        <InputText class="form-control" @bind-Value="manualItem.Upc" />
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary mt-3">Add Item</button>
+            </EditForm>
+        </div>
+    </div>
+}
+else if (activeTab == "csv")
+{
+    <div class="card">
+        <div class="card-body">
+            <p>Upload a CSV file with the following columns:</p>
+            <code>Name, Description, Category, OnHandCount, MinimumThreshold, Upc</code>
+            
+            <div class="mt-3">
+                <InputFile OnChange="HandleCsvUpload" accept=".csv" class="form-control" />
+            </div>
+            
+            @if (!string.IsNullOrEmpty(csvMessage))
+            {
+                <div class="alert @(csvSuccess ? "alert-success" : "alert-danger") mt-3">
+                    @csvMessage
+                </div>
+            }
+        </div>
+    </div>
+}
+else if (activeTab == "scan")
+{
+    <div class="card">
+        <div class="card-body">
+            <p>Enter a UPC/EAN code to scan. The item will be queued for processing.</p>
+            
+            <div class="row g-2">
+                <div class="col-10">
+                    <input type="text" class="form-control" placeholder="Enter UPC code..." @bind="scanUpc" @bind:event="oninput" />
+                </div>
+                <div class="col-2">
+                    <button class="btn btn-primary w-100" @onclick="QueueScan" disabled="@string.IsNullOrWhiteSpace(scanUpc)">
+                        Scan
+                    </button>
+                </div>
+            </div>
+            
+            @if (!string.IsNullOrEmpty(scanMessage))
+            {
+                <div class="alert @(scanSuccess ? "alert-success" : "alert-warning") mt-3">
+                    @scanMessage
+                </div>
+            }
+            
+            <hr />
+            
+            <h5>Recent Scans</h5>
+            @if (recentScans.Any())
+            {
+                <ul class="list-group">
+                    @foreach (var scan in recentScans)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>
+                                <strong>@scan.Upc</strong>
+                                @if (!string.IsNullOrEmpty(scan.ProductName))
+                                {
+                                    <span class="text-muted"> - @scan.ProductName</span>
+                                }
+                            </span>
+                            <span class="badge bg-@GetStatusBadge(scan.Status)">
+                                @scan.Status
+                            </span>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p class="text-muted">No recent scans</p>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private string activeTab = "manual";
+    private ManualItemModel manualItem = new();
+    private string csvMessage = "";
+    private bool csvSuccess;
+    private string scanUpc = "";
+    private string scanMessage = "";
+    private bool scanSuccess;
+    private List<ScanQueueItemDto> recentScans = new();
+    
+    private void SetTabManual()
+    {
+        activeTab = "manual";
+    }
+    
+    private void SetTabCsv()
+    {
+        activeTab = "csv";
+    }
+    
+    private void SetTabScan()
+    {
+        activeTab = "scan";
+    }
+    
+    private class ManualItemModel
+    {
+        public string Name { get; set; } = "";
+        public string? Description { get; set; }
+        public string Category { get; set; } = "Pantry";
+        public int OnHandCount { get; set; } = 1;
+        public int MinimumThreshold { get; set; } = 1;
+        public string? Upc { get; set; }
+    }
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRecentScans();
+    }
+    
+    private async Task LoadRecentScans()
+    {
+        try
+        {
+            recentScans = await Mediator.Send(new GetScanQueueQuery());
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading recent scans");
+        }
+    }
+    
+    private async Task AddManualItem()
+    {
+        try
+        {
+            await Mediator.Send(new AddInventoryItemCommand(
+                manualItem.Name,
+                manualItem.Description,
+                manualItem.Category,
+                manualItem.OnHandCount,
+                manualItem.MinimumThreshold,
+                manualItem.Upc
+            ));
+            
+            manualItem = new ManualItemModel();
+            csvMessage = "Item added successfully!";
+            csvSuccess = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error adding item");
+            csvMessage = "Error adding item: " + ex.Message;
+            csvSuccess = false;
+        }
+    }
+    
+    private async Task HandleCsvUpload(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var file = e.File;
+            using var reader = new StreamReader(file.OpenReadStream());
+            var content = await reader.ReadToEndAsync();
+            
+            var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            var addedCount = 0;
+            
+            // Skip header row
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var parts = lines[i].Split(',');
+                if (parts.Length >= 5)
+                {
+                    var name = parts[0].Trim().Trim('"');
+                    var description = parts.Length > 1 ? parts[1].Trim().Trim('"') : null;
+                    var category = parts.Length > 2 ? parts[2].Trim().Trim('"') : "Pantry";
+                    var onHand = int.TryParse(parts[3].Trim(), out var oh) ? oh : 1;
+                    var minThreshold = int.TryParse(parts[4].Trim(), out var mt) ? mt : 1;
+                    var upc = parts.Length > 5 ? parts[5].Trim().Trim('"') : null;
+                    
+                    await Mediator.Send(new AddInventoryItemCommand(
+                        name, description, category, onHand, minThreshold, upc
+                    ));
+                    addedCount++;
+                }
+            }
+            
+            csvMessage = $"Successfully imported {addedCount} items!";
+            csvSuccess = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error processing CSV");
+            csvMessage = "Error processing CSV: " + ex.Message;
+            csvSuccess = false;
+        }
+    }
+    
+    private async Task QueueScan()
+    {
+        try
+        {
+            await Mediator.Send(new QueueScanCommand(scanUpc.Trim()));
+            scanMessage = $"UPC {scanUpc} queued for processing!";
+            scanSuccess = true;
+            scanUpc = "";
+            await LoadRecentScans();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error queueing scan");
+            scanMessage = "Error queueing scan: " + ex.Message;
+            scanSuccess = false;
+        }
+    }
+    
+    private string GetStatusBadge(Domain.ScanStatus status) => status switch
+    {
+        Domain.ScanStatus.Pending => "secondary",
+        Domain.ScanStatus.Processing => "info",
+        Domain.ScanStatus.Complete => "success",
+        Domain.ScanStatus.Failed => "danger",
+        _ => "secondary"
+    };
+}

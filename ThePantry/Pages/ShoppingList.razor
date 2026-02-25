@@ -1,0 +1,172 @@
+@page "/shopping-list"
+@using MediatR
+@using ThePantry.Application.Queries
+@using ThePantry.Application.Commands
+@inject IMediator Mediator
+@inject ILogger<ShoppingList> Logger
+
+<PageTitle>Shopping List - The Pantry</PageTitle>
+
+<h1>Shopping List</h1>
+
+<p>Items that are below their minimum threshold and need to be purchased.</p>
+
+<div class="row mb-3">
+    <div class="col">
+        <button class="btn btn-primary" @onclick="LoadShoppingList">
+            <span class="oi oi-reload"></span> Refresh
+        </button>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (shoppingList == null || shoppingList.Count == 0)
+{
+    <div class="alert alert-success">
+        Your shopping list is empty! All items are well-stocked.
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Items to Purchase (@shoppingList.Count)</h5>
+            
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-warning">
+                        <tr>
+                            <th>Item</th>
+                            <th>Category</th>
+                            <th class="text-center">On Hand</th>
+                            <th class="text-center">Minimum</th>
+                            <th class="text-center">Need</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in shoppingList)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@item.Name</strong>
+                                    @if (!string.IsNullOrEmpty(item.Description))
+                                    {
+                                        <br /><small class="text-muted">@item.Description</small>
+                                    }
+                                </td>
+                                <td>@item.Category</td>
+                                <td class="text-center">@item.OnHandCount</td>
+                                <td class="text-center">@item.MinimumThreshold</td>
+                                <td class="text-center">
+                                    <span class="badge bg-danger">@item.Deficit</span>
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-success" @onclick="() => MarkPurchased(item)">
+                                        <span class="oi oi-check"></span> Purchased
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showPurchasedModal && itemToPurchase != null)
+{
+    <div class="modal fade show" style="display:block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Mark as Purchased</h5>
+                    <button type="button" class="btn-close" @onclick="ClosePurchasedModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>How many <strong>@itemToPurchase.Name</strong> did you buy?</p>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity</label>
+                        <input type="number" class="form-control" @bind="purchaseQuantity" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="ClosePurchasedModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="ConfirmPurchase">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private List<ShoppingListItemDto>? shoppingList;
+    private bool isLoading = true;
+
+    private bool showPurchasedModal = false;
+    private ShoppingListItemDto? itemToPurchase;
+    private int purchaseQuantity = 1;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadShoppingList();
+    }
+    
+    private async Task LoadShoppingList()
+    {
+        isLoading = true;
+        try
+        {
+            shoppingList = await Mediator.Send(new GetShoppingListQuery());
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading shopping list");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void MarkPurchased(ShoppingListItemDto item)
+    {
+        itemToPurchase = item;
+        purchaseQuantity = item.Deficit;
+        showPurchasedModal = true;
+    }
+
+    private void ClosePurchasedModal()
+    {
+        showPurchasedModal = false;
+        itemToPurchase = null;
+    }
+
+    private async Task ConfirmPurchase()
+    {
+        if (itemToPurchase == null) return;
+
+        try
+        {
+            await Mediator.Send(new MarkAsPurchasedCommand(itemToPurchase.Id, purchaseQuantity));
+            ClosePurchasedModal();
+            await LoadShoppingList();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error marking item as purchased");
+        }
+    }
+}
+        }
+    }
+}

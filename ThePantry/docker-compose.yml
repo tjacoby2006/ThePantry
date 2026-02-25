@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  pantry:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - pantry-data:/app/data
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+volumes:
+  pantry-data:
+    driver: local

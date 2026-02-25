@@ -1,0 +1,297 @@
+@page "/scan-monitor"
+@using MediatR
+@using ThePantry.Application.Commands
+@using ThePantry.Application.Queries
+@inject IMediator Mediator
+@inject ILogger<ScanMonitor> Logger
+
+<PageTitle>Scan Monitor - The Pantry</PageTitle>
+
+<h1>Scan Monitor</h1>
+
+<p>Monitor the status of UPC scans and review items that need manual entry.</p>
+
+<div class="row mb-3">
+    <div class="col">
+        <button class="btn btn-primary" @onclick="RefreshQueue">
+            <span class="oi oi-reload"></span> Refresh
+        </button>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else
+{
+    <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(activeTab == "all" ? "active" : "")" @onclick="() => LoadAllTab()">
+                All Scans (@allScans.Count)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(activeTab == "pending" ? "active" : "")" @onclick="() => LoadPendingTab()">
+                Pending (@pendingScans.Count)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(activeTab == "failed" ? "active" : "")" @onclick="() => LoadFailedTab()">
+                Needs Review (@failedScans.Count)
+            </button>
+        </li>
+    </ul>
+    
+    @if (displayedScans.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>UPC</th>
+                        <th>Product Name</th>
+                        <th>Status</th>
+                        <th>Timestamp</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var scan in displayedScans)
+                    {
+                        <tr>
+                            <td><code>@scan.Upc</code></td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(scan.ProductName))
+                                {
+                                    @scan.ProductName
+                                }
+                                else if (scan.Status == Domain.ScanStatus.Failed)
+                                {
+                                    <span class="text-muted">Not found</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Processing...</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge bg-@GetStatusBadge(scan.Status)">
+                                    @scan.Status
+                                </span>
+                            </td>
+                            <td>@scan.Timestamp.ToLocalTime():g</td>
+                            <td>
+                                @if (scan.Status == Domain.ScanStatus.Failed)
+                                {
+                                    <button class="btn btn-sm btn-primary" @onclick="() => ShowReviewModal(scan)">
+                                        Review
+                                    </button>
+                                }
+                                else if (scan.Status == Domain.ScanStatus.Complete && scan.LinkedInventoryItemId.HasValue)
+                                {
+                                    <span class="text-success">Added to inventory</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            No scans in this category.
+        </div>
+    }
+}
+
+@if (showReviewModal && selectedScan != null)
+{
+    <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Review Scan: @selectedScan.Upc</h5>
+                    <button type="button" class="btn-close" @onclick="CloseReviewModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">The product was not found in the database. Please enter details manually:</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Name *</label>
+                        <input type="text" class="form-control" @bind="reviewItem.Name" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-control" @bind="reviewItem.Description" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <select class="form-select" @bind="reviewItem.Category">
+                            <option value="Pantry">Pantry</option>
+                            <option value="Refrigerator">Refrigerator</option>
+                            <option value="Freezer">Freezer</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">On Hand Count</label>
+                            <input type="number" class="form-control" @bind="reviewItem.OnHandCount" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Minimum Threshold</label>
+                            <input type="number" class="form-control" @bind="reviewItem.MinimumThreshold" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseReviewModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="SubmitReview">Add to Inventory</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ScanQueueItemDto> allScans = new();
+    private List<ScanQueueItemDto> pendingScans = new();
+    private List<ScanQueueItemDto> failedScans = new();
+    private List<ScanQueueItemDto> displayedScans = new();
+    private string activeTab = "all";
+    private bool isLoading = true;
+    private bool showReviewModal;
+    private ScanQueueItemDto? selectedScan;
+    private ReviewItemModel reviewItem = new();
+    
+    private class ReviewItemModel
+    {
+        public string Name { get; set; } = "";
+        public string? Description { get; set; }
+        public string Category { get; set; } = "Pantry";
+        public int OnHandCount { get; set; } = 1;
+        public int MinimumThreshold { get; set; } = 1;
+    }
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadQueue();
+        // Auto-refresh every 5 seconds
+        _ = StartAutoRefresh();
+    }
+
+    private Task LoadAllTab() => LoadTab("all");
+    private Task LoadPendingTab() => LoadTab("pending");
+    private Task LoadFailedTab() => LoadTab("failed");
+
+    private async Task LoadTab(string tab)
+    {
+        activeTab = tab;
+        await LoadQueue();
+    }
+    
+    private async Task LoadQueue()
+    {
+        isLoading = true;
+        try
+        {
+            allScans = await Mediator.Send(new GetScanQueueQuery());
+            pendingScans = allScans.Where(s => s.Status == Domain.ScanStatus.Pending || s.Status == Domain.ScanStatus.Processing).ToList();
+            failedScans = allScans.Where(s => s.Status == Domain.ScanStatus.Failed).ToList();
+            
+            displayedScans = activeTab switch
+            {
+                "pending" => pendingScans,
+                "failed" => failedScans,
+                _ => allScans
+            };
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading scan queue");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    
+    private async Task RefreshQueue()
+    {
+        await LoadQueue();
+    }
+    
+    private async Task StartAutoRefresh()
+    {
+        while (true)
+        {
+            await Task.Delay(5000);
+            if (!showReviewModal)
+            {
+                await LoadQueue();
+            }
+        }
+    }
+    
+    private void ShowReviewModal(ScanQueueItemDto scan)
+    {
+        selectedScan = scan;
+        reviewItem = new ReviewItemModel
+        {
+            Name = scan.ProductName ?? "",
+            Description = scan.ProductDescription
+        };
+        showReviewModal = true;
+    }
+    
+    private void CloseReviewModal()
+    {
+        showReviewModal = false;
+        selectedScan = null;
+    }
+    
+    private async Task SubmitReview()
+    {
+        if (selectedScan == null || string.IsNullOrWhiteSpace(reviewItem.Name))
+            return;
+        
+        try
+        {
+            await Mediator.Send(new AddInventoryItemCommand(
+                reviewItem.Name,
+                reviewItem.Description,
+                reviewItem.Category,
+                reviewItem.OnHandCount,
+                reviewItem.MinimumThreshold,
+                selectedScan.Upc
+            ));
+            
+            CloseReviewModal();
+            await LoadQueue();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error adding item from review");
+        }
+    }
+    
+    private string GetStatusBadge(Domain.ScanStatus status)
+    {
+        if (status == Domain.ScanStatus.Pending)
+            return "secondary";
+        else if (status == Domain.ScanStatus.Processing)
+            return "info";
+        else if (status == Domain.ScanStatus.Complete)
+            return "success";
+        else if (status == Domain.ScanStatus.Failed)
+            return "danger";
+        else
+            return "secondary";
+    }
+}
