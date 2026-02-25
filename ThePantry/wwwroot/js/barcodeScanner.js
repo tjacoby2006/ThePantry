@@ -28,11 +28,32 @@ window.barcodeScanner = {
                         element.style.border = "5px solid #28a745";
                         setTimeout(() => element.style.border = "none", 500);
 
-                        // Audio feedback (optional, but good for speed)
+                        // Audio feedback
+                        const playBeep = () => {
+                            try {
+                                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                                const oscillator = audioCtx.createOscillator();
+                                const gainNode = audioCtx.createGain();
+                                oscillator.connect(gainNode);
+                                gainNode.connect(audioCtx.destination);
+                                oscillator.type = 'sine';
+                                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+                                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                                oscillator.start();
+                                oscillator.stop(audioCtx.currentTime + 0.1);
+                            } catch (e) { console.error("Web Audio fallback failed", e); }
+                        };
+
                         try {
-                            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
-                            audio.play();
-                        } catch (e) { console.error("Audio play failed", e); }
+                            const audio = new Audio('/beep.mp3');
+                            audio.play().catch(err => {
+                                console.warn("MP3 play failed, using fallback", err);
+                                playBeep();
+                            });
+                        } catch (e) { 
+                            playBeep();
+                        }
 
                         dotNetHelper.invokeMethodAsync('HandleBarcodeDetected', decodedText);
                     }

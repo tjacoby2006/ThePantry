@@ -276,7 +276,7 @@ else
         
         try
         {
-            await Mediator.Send(new AddInventoryItemCommand(
+            var item = await Mediator.Send(new AddInventoryItemCommand(
                 reviewItem.Name,
                 reviewItem.Description,
                 reviewItem.Category,
@@ -285,7 +285,10 @@ else
                 new List<string> { selectedScan.Upc }
             ));
             
-            await ToastService.ShowSuccess($"{reviewItem.Name} added to inventory");
+            // Delete the scan from the queue after successful processing
+            await Mediator.Send(new DeleteScanCommand(selectedScan.Id));
+            
+            await ToastService.ShowSuccess($"{reviewItem.Name} processed");
             CloseReviewModal();
             await LoadQueue();
         }

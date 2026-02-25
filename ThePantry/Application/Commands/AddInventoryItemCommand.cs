@@ -25,6 +25,30 @@ public class AddInventoryItemHandler : IRequestHandler<AddInventoryItemCommand, 
     
     public async Task<InventoryItem> Handle(AddInventoryItemCommand request, CancellationToken cancellationToken)
     {
+        // Check if an item with the same name already exists
+        var existingItem = await _context.InventoryItems
+            .Include(i => i.Skus)
+            .FirstOrDefaultAsync(i => i.Name.ToLower() == request.Name.ToLower(), cancellationToken);
+
+        if (existingItem != null)
+        {
+            // Update existing item instead of creating a new one
+            existingItem.OnHandCount += request.OnHandCount;
+            if (request.Skus != null)
+            {
+                foreach (var sku in request.Skus.Where(s => !string.IsNullOrWhiteSpace(s)))
+                {
+                    if (!existingItem.Skus.Any(s => s.Sku == sku))
+                    {
+                        existingItem.Skus.Add(new ProductSku { Sku = sku });
+                    }
+                }
+            }
+            
+            await _context.SaveChangesAsync(cancellationToken);
+            return existingItem;
+        }
+
         var item = new InventoryItem
         {
             Name = request.Name,
