@@ -45,6 +45,18 @@ app.UseRouting();
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
 
+// API for database backup
+app.MapGet("/api/backup", async (ApplicationDbContext context) =>
+{
+    var dbPath = context.Database.GetDbConnection().DataSource;
+    if (File.Exists(dbPath))
+    {
+        var bytes = await File.ReadAllBytesAsync(dbPath);
+        return Results.File(bytes, "application/x-sqlite3", $"thepantry_backup_{DateTime.Now:yyyyMMdd}.db");
+    }
+    return Results.NotFound();
+});
+
 // Initialize database
 using (var scope = app.Services.CreateScope())
 {

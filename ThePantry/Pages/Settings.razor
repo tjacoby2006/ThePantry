@@ -1,0 +1,46 @@
+@page "/settings"
+@using ThePantry.Services
+@inject ToastService ToastService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Settings - The Pantry</PageTitle>
+
+<h1>Settings</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Data Management</h5>
+            </div>
+            <div class="card-body">
+                <h6>Database Backup</h6>
+                <p class="text-muted small">Download a copy of your SQLite database file. This contains all your inventory, history, and scan data.</p>
+                <a href="/api/backup" class="btn btn-primary" target="_blank">
+                    <span class="oi oi-cloud-download"></span> Download Backup
+                </a>
+
+                <hr />
+
+                <h6>Restore Data</h6>
+                <p class="text-muted small">To restore data, replace the <code>thepantry.db</code> file in the application root with your backup file and restart the application.</p>
+                <div class="alert alert-warning">
+                    <span class="oi oi-warning"></span> Manual restoration is currently required for safety.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">About ThePantry</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Version:</strong> 1.0.0</p>
+                <p>A smart pantry management system with UPC scanning and automated shopping lists.</p>
+                <p>Built with Blazor Server, EF Core, and MediatR.</p>
+            </div>
+        </div>
+    </div>
+</div>

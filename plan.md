@@ -23,8 +23,8 @@
 - [x] Add a "Low Stock" widget to the Dashboard.
 
 ### 2. Data Persistence & Export
-- [ ] Add export to CSV/Excel for inventory.
-- [ ] Implement database backup/restore.
+- [x] Add export to CSV/Excel for inventory.
+- [x] Implement database backup/restore.
 
 ### 3. Advanced Features
 - [ ] Add "Manual Addition" to Shopping List for items not in inventory.

@@ -2,8 +2,10 @@
 @using ThePantry.Application.Queries
 @using ThePantry.Domain
 @using ThePantry.Services
+@using System.Text
 @inject IMediator Mediator
 @inject ToastService ToastService
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Inventory - The Pantry</PageTitle>
 
@@ -11,10 +13,10 @@
 
 <div class="mb-3">
     <div class="row g-2">
-        <div class="col-md-6">
+        <div class="col-md-5">
             <input type="text" class="form-control" placeholder="Search items..." @bind="searchTerm" @bind:event="oninput" />
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <select class="form-select" @bind="selectedCategory">
                 <option value="">All Categories</option>
                 <option value="Pantry">Pantry</option>
@@ -24,6 +26,11 @@
         </div>
         <div class="col-md-2">
             <button class="btn btn-primary w-100" @onclick="Search">Search</button>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-outline-secondary w-100" @onclick="ExportToCsv">
+                <span class="oi oi-share-boxed"></span> Export
+            </button>
         </div>
     </div>
 </div>
@@ -299,6 +306,36 @@ else
         {
             await ToastService.ShowError("Error updating item");
             Console.WriteLine($"Error incrementing item {itemId}: {ex.Message}");
+        }
+    }
+
+    private async Task ExportToCsv()
+    {
+        try
+        {
+            var result = await Mediator.Send(new GetInventoryListQuery(
+                SearchTerm: string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm,
+                Category: string.IsNullOrWhiteSpace(selectedCategory) ? null : selectedCategory,
+                Page: 1,
+                PageSize: 1000 // Export all matching items
+            ));
+
+            var csv = new StringBuilder();
+            csv.AppendLine("Name,Description,Category,OnHandCount,MinimumThreshold,Upc");
+
+            foreach (var item in result.Items)
+            {
+                csv.AppendLine($"\"{item.Name}\",\"{item.Description}\",\"{item.Category}\",{item.OnHandCount},{item.MinimumThreshold},\"{item.Upc}\"");
+            }
+
+            var fileName = $"Inventory_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, csv.ToString());
+            await ToastService.ShowSuccess("Inventory exported successfully");
+        }
+        catch (Exception ex)
+        {
+            await ToastService.ShowError("Error exporting inventory");
+            Console.WriteLine($"Error exporting: {ex.Message}");
         }
     }
 
