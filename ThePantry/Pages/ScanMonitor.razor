@@ -87,7 +87,7 @@ else
                                     @scan.Status
                                 </span>
                             </td>
-                            <td>@scan.Timestamp.ToLocalTime():g</td>
+                            <td>@scan.Timestamp.ToLocalTime()</td>
                             <td>
                                 @if (scan.Status == Domain.ScanStatus.Failed)
                                 {

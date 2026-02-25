@@ -52,8 +52,8 @@ public class OpenFoodFactsLookupService : IProductLookupService
             var result = new ProductLookupResult
             {
                 Upc = upc,
-                Name = json.Product.ProductName ?? json.Product.GenericName ?? "Unknown Product",
-                Description = json.Product.GenericName,
+                Name = json.Product.Product_Name ?? json.Product.Generic_Name ?? "Unknown Product",
+                Description = json.Product.Generic_Name,
                 Brand = json.Product.Brands
             };
             
@@ -87,8 +87,8 @@ public class OpenFoodFactsResponse
 public class OpenFoodFactsProduct
 {
     public string? Code { get; set; }
-    public string? ProductName { get; set; }
-    public string? GenericName { get; set; }
+    public string? Product_Name { get; set; }
+    public string? Generic_Name { get; set; }
     public string? Brands { get; set; }
     public string? ImageUrl { get; set; }
 }
