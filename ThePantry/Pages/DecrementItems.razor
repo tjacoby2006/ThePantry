@@ -1,0 +1,121 @@
+@page "/decrement-items"
+@using MediatR
+@using ThePantry.Application.Commands
+@using ThePantry.Services
+@implements IAsyncDisposable
+@inject IMediator Mediator
+@inject ILogger<DecrementItems> Logger
+@inject ToastService ToastService
+@inject IJSRuntime JS
+
+<PageTitle>Decrement Items - The Pantry</PageTitle>
+
+<h1>Use Inventory Items</h1>
+
+<div class="card">
+    <div class="card-body text-center">
+        <p class="text-muted">Scan a barcode to remove one item from inventory.</p>
+        <div id="reader" style="width: 100%; max-width: 600px; margin: 0 auto; border-radius: 8px; overflow: hidden;"></div>
+        
+        <div class="mt-3">
+            <div class="row g-2 justify-content-center">
+                <div class="col-md-8 col-10">
+                    <input type="text" class="form-control" placeholder="Enter UPC code manually..." @bind="scanUpc" @bind:event="oninput" />
+                </div>
+                <div class="col-md-2 col-2">
+                    <button class="btn btn-danger w-100" @onclick="DecrementByUpc" disabled="@string.IsNullOrWhiteSpace(scanUpc)">
+                        Use
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (lastUsedItem != null)
+{
+    <div class="alert alert-success mt-3">
+        <strong>Used:</strong> @lastUsedItem.Name (Remaining: @lastUsedItem.OnHandCount)
+    </div>
+}
+
+@code {
+    private string scanUpc = "";
+    private ThePantry.Domain.InventoryItem? lastUsedItem;
+    private DotNetObjectReference<DecrementItems>? objRef;
+    private bool isScannerRunning = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await StartScanner();
+        }
+    }
+
+    private async Task StartScanner()
+    {
+        if (isScannerRunning) return;
+        
+        try
+        {
+            objRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("barcodeScanner.start", objRef, "reader");
+            isScannerRunning = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to start scanner");
+            await ToastService.ShowError("Could not access camera. Please ensure permissions are granted.");
+        }
+    }
+
+    private async Task StopScanner()
+    {
+        if (!isScannerRunning) return;
+        
+        try
+        {
+            await JS.InvokeVoidAsync("barcodeScanner.stop");
+            isScannerRunning = false;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to stop scanner");
+        }
+    }
+
+    [JSInvokable]
+    public async Task HandleBarcodeDetected(string code)
+    {
+        scanUpc = code;
+        StateHasChanged();
+        await DecrementByUpc();
+    }
+
+    private async Task DecrementByUpc()
+    {
+        if (string.IsNullOrWhiteSpace(scanUpc)) return;
+
+        var result = await Mediator.Send(new DecrementInventoryByScannerCommand(scanUpc));
+        
+        if (result != null)
+        {
+            lastUsedItem = result;
+            await ToastService.ShowSuccess($"Used 1 {result.Name}");
+            scanUpc = "";
+        }
+        else
+        {
+            await ToastService.ShowWarning("Product not found in inventory.");
+        }
+        
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await StopScanner();
+        objRef?.Dispose();
+    }
+}

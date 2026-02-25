@@ -22,5 +22,28 @@
         <article class="content px-4">
             @Body
         </article>
+
+        <div class="fab-container">
+            <button class="fab-main @(fabExpanded ? "active" : "")" @onclick="ToggleFab">
+                <span class="oi oi-bolt" aria-hidden="true"></span>
+            </button>
+            <div class="fab-options @(fabExpanded ? "expanded" : "")">
+                <a href="add-items" class="fab-option" title="Add Items" @onclick="ToggleFab">
+                    <span class="oi oi-plus" aria-hidden="true"></span>
+                </a>
+                <a href="decrement-items" class="fab-option" title="Use Items" @onclick="ToggleFab">
+                    <span class="oi oi-minus" aria-hidden="true"></span>
+                </a>
+            </div>
+        </div>
     </main>
 </div>
+
+@code {
+    private bool fabExpanded = false;
+
+    private void ToggleFab()
+    {
+        fabExpanded = !fabExpanded;
+    }
+}
