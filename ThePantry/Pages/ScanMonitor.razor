@@ -90,8 +90,11 @@ else
                             <td>
                                 @if (scan.Status == Domain.ScanStatus.Failed)
                                 {
-                                    <button class="btn btn-sm btn-primary" @onclick="() => ShowReviewModal(scan)">
+                                    <button class="btn btn-sm btn-primary me-1" @onclick="() => ShowReviewModal(scan)">
                                         Review
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteScan(scan.Id)">
+                                        <span class="oi oi-trash"></span>
                                     </button>
                                 }
                                 else if (scan.Status == Domain.ScanStatus.Complete && scan.LinkedInventoryItemId.HasValue)
@@ -282,6 +285,24 @@ else
         {
             Logger.LogError(ex, "Error submitting review");
             await ToastService.ShowError("Error adding item");
+        }
+    }
+
+    private async Task DeleteScan(int id)
+    {
+        try
+        {
+            var result = await Mediator.Send(new DeleteScanCommand(id));
+            if (result)
+            {
+                await ToastService.ShowSuccess("Scan deleted");
+                await LoadQueue();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting scan");
+            await ToastService.ShowError("Error deleting scan");
         }
     }
     

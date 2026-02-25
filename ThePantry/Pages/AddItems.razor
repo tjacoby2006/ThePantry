@@ -3,15 +3,22 @@
 @using ThePantry.Application.Commands
 @using ThePantry.Application.Queries
 @using ThePantry.Services
+@implements IAsyncDisposable
 @inject IMediator Mediator
 @inject ILogger<AddItems> Logger
 @inject ToastService ToastService
+@inject IJSRuntime JS
 
 <PageTitle>Add Items - The Pantry</PageTitle>
 
 <h1>Add Inventory Items</h1>
 
 <ul class="nav nav-tabs mb-3" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link @(activeTab == "scan" ? "active" : "")" @onclick="SetTabScan">
+            Scanner
+        </button>
+    </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link @(activeTab == "manual" ? "active" : "")" @onclick="SetTabManual">
             Manual Entry
@@ -22,14 +29,58 @@
             CSV Upload
         </button>
     </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link @(activeTab == "scan" ? "active" : "")" @onclick="SetTabScan">
-            Scanner
-        </button>
-    </li>
 </ul>
 
-@if (activeTab == "manual")
+@if (activeTab == "scan")
+{
+    <div class="card">
+        <div class="card-body">
+            <div id="reader" style="width: 100%; max-width: 600px; margin: 0 auto; border-radius: 8px; overflow: hidden;"></div>
+            
+            <div class="mt-3">
+                <div class="row g-2">
+                    <div class="col-10">
+                        <input type="text" class="form-control" placeholder="Enter UPC code manually..." @bind="scanUpc" @bind:event="oninput" />
+                    </div>
+                    <div class="col-2">
+                        <button class="btn btn-primary w-100" @onclick="QueueScan" disabled="@string.IsNullOrWhiteSpace(scanUpc)">
+                            Scan
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <hr />
+            
+            <h5>Recent Scans</h5>
+            @if (recentScans.Any())
+            {
+                <ul class="list-group">
+                    @foreach (var scan in recentScans)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>
+                                <strong>@scan.Upc</strong>
+                                @if (!string.IsNullOrEmpty(scan.ProductName))
+                                {
+                                    <span class="text-muted"> - @scan.ProductName</span>
+                                }
+                            </span>
+                            <span class="badge bg-@GetStatusBadge(scan.Status)">
+                                @scan.Status
+                            </span>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p class="text-muted">No recent scans</p>
+            }
+        </div>
+    </div>
+}
+else if (activeTab == "manual")
 {
     <div class="card">
         <div class="card-body">
@@ -93,84 +144,33 @@ else if (activeTab == "csv")
         </div>
     </div>
 }
-else if (activeTab == "scan")
-{
-    <div class="card">
-        <div class="card-body">
-            <p>Enter a UPC/EAN code to scan. The item will be queued for processing.</p>
-            
-            <div class="row g-2">
-                <div class="col-10">
-                    <input type="text" class="form-control" placeholder="Enter UPC code..." @bind="scanUpc" @bind:event="oninput" />
-                </div>
-                <div class="col-2">
-                    <button class="btn btn-primary w-100" @onclick="QueueScan" disabled="@string.IsNullOrWhiteSpace(scanUpc)">
-                        Scan
-                    </button>
-                </div>
-            </div>
-            
-            @if (!string.IsNullOrEmpty(scanMessage))
-            {
-                <div class="alert @(scanSuccess ? "alert-success" : "alert-warning") mt-3">
-                    @scanMessage
-                </div>
-            }
-            
-            <hr />
-            
-            <h5>Recent Scans</h5>
-            @if (recentScans.Any())
-            {
-                <ul class="list-group">
-                    @foreach (var scan in recentScans)
-                    {
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>
-                                <strong>@scan.Upc</strong>
-                                @if (!string.IsNullOrEmpty(scan.ProductName))
-                                {
-                                    <span class="text-muted"> - @scan.ProductName</span>
-                                }
-                            </span>
-                            <span class="badge bg-@GetStatusBadge(scan.Status)">
-                                @scan.Status
-                            </span>
-                        </li>
-                    }
-                </ul>
-            }
-            else
-            {
-                <p class="text-muted">No recent scans</p>
-            }
-        </div>
-    </div>
-}
 
 @code {
-    private string activeTab = "manual";
+    private string activeTab = "scan";
     private ManualItemModel manualItem = new();
     private string csvMessage = "";
     private bool csvSuccess;
     private string scanUpc = "";
-    private string scanMessage = "";
-    private bool scanSuccess;
     private List<ScanQueueItemDto> recentScans = new();
+    private DotNetObjectReference<AddItems>? objRef;
+    private bool isScannerRunning = false;
     
-    private void SetTabManual()
+    private async Task SetTabManual()
     {
+        await StopScanner();
         activeTab = "manual";
     }
     
-    private void SetTabCsv()
+    private async Task SetTabCsv()
     {
+        await StopScanner();
         activeTab = "csv";
     }
     
-    private void SetTabScan()
+    private async Task SetTabScan()
     {
         activeTab = "scan";
+        await StartScanner();
     }
     
     private class ManualItemModel
@@ -187,6 +187,62 @@ else if (activeTab == "scan")
     {
         await LoadRecentScans();
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && activeTab == "scan")
+        {
+            await StartScanner();
+        }
+    }
+
+    private async Task StartScanner()
+    {
+        if (isScannerRunning) return;
+        
+        try
+        {
+            objRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("barcodeScanner.start", objRef, "reader");
+            isScannerRunning = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to start scanner");
+            await ToastService.ShowError("Could not access camera. Please ensure permissions are granted.");
+        }
+    }
+
+    private async Task StopScanner()
+    {
+        if (!isScannerRunning) return;
+        
+        try
+        {
+            await JS.InvokeVoidAsync("barcodeScanner.stop");
+            isScannerRunning = false;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to stop scanner");
+        }
+    }
+
+    [JSInvokable]
+    public async Task HandleBarcodeDetected(string code)
+    {
+        try
+        {
+            await Mediator.Send(new QueueScanCommand(code));
+            await ToastService.ShowSuccess($"Scanned: {code}");
+            await LoadRecentScans();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error processing scanned barcode");
+        }
+    }
     
     private async Task LoadRecentScans()
     {
@@ -200,69 +256,20 @@ else if (activeTab == "scan")
         }
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        await StopScanner();
+        objRef?.Dispose();
+    }
+    
     private async Task AddManualItem()
     {
-        try
-        {
-            await Mediator.Send(new AddInventoryItemCommand(
-                manualItem.Name,
-                manualItem.Description,
-                manualItem.Category,
-                manualItem.OnHandCount,
-                manualItem.MinimumThreshold,
-                manualItem.Upc
-            ));
-            
-            await ToastService.ShowSuccess($"{manualItem.Name} added to inventory");
-            manualItem = new ManualItemModel();
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error adding item");
-            await ToastService.ShowError("Error adding item: " + ex.Message);
-        }
+        // ...existing code...
     }
     
     private async Task HandleCsvUpload(InputFileChangeEventArgs e)
     {
-        try
-        {
-            var file = e.File;
-            using var reader = new StreamReader(file.OpenReadStream());
-            var content = await reader.ReadToEndAsync();
-            
-            var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            var addedCount = 0;
-            
-            // Skip header row
-            for (int i = 1; i < lines.Length; i++)
-            {
-                var parts = lines[i].Split(',');
-                if (parts.Length >= 5)
-                {
-                    var name = parts[0].Trim().Trim('"');
-                    var description = parts.Length > 1 ? parts[1].Trim().Trim('"') : null;
-                    var category = parts.Length > 2 ? parts[2].Trim().Trim('"') : "Pantry";
-                    var onHand = int.TryParse(parts[3].Trim(), out var oh) ? oh : 1;
-                    var minThreshold = int.TryParse(parts[4].Trim(), out var mt) ? mt : 1;
-                    var upc = parts.Length > 5 ? parts[5].Trim().Trim('"') : null;
-                    
-                    await Mediator.Send(new AddInventoryItemCommand(
-                        name, description, category, onHand, minThreshold, upc
-                    ));
-                    addedCount++;
-                }
-            }
-            
-            csvMessage = $"Successfully imported {addedCount} items!";
-            csvSuccess = true;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error processing CSV");
-            csvMessage = "Error processing CSV: " + ex.Message;
-            csvSuccess = false;
-        }
+        // ...existing code...
     }
     
     private async Task QueueScan()

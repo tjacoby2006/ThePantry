@@ -87,7 +87,7 @@ public class ScanProcessingHostedService : BackgroundService
                             Name = result.Name,
                             Description = result.Description,
                             Category = "Pantry",
-                            OnHandCount = 0,
+                            OnHandCount = 1,
                             MinimumThreshold = 1,
                             Upc = scanItem.Upc,
                             CreatedDate = DateTime.UtcNow
