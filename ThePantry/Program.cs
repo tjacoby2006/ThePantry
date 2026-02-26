@@ -33,6 +33,13 @@ builder.Services.AddHostedService<ScanProcessingHostedService>();
 
 var app = builder.Build();
 
+// Ensure scan storage directory exists
+var scanStoragePath = app.Configuration["ScanStoragePath"] ?? "wwwroot/uploads/scans";
+if (!Directory.Exists(scanStoragePath))
+{
+    Directory.CreateDirectory(scanStoragePath);
+}
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {

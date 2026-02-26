@@ -1,7 +1,10 @@
 @page "/settings"
 @using ThePantry.Services
+@using MediatR
+@using ThePantry.Application.Commands
 @inject ToastService ToastService
 @inject NavigationManager NavigationManager
+@inject IMediator Mediator
 
 <PageTitle>Settings - The Pantry</PageTitle>
 
@@ -19,6 +22,23 @@
                 <a href="/api/backup" class="btn btn-primary" target="_blank">
                     <span class="oi oi-cloud-download"></span> Download Backup
                 </a>
+
+                <hr />
+
+                <h6>Resync Inventory Data</h6>
+                <p class="text-muted small">Update existing inventory items with the latest information from the product lookup service. This will populate missing images and descriptions.</p>
+                <button class="btn btn-secondary" @onclick="ResyncInventory" disabled="@isResyncing">
+                    @if (isResyncing)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span> Resyncing...</span>
+                    }
+                    else
+                    {
+                        <span class="oi oi-reload"></span>
+                        <span> Resync from Service</span>
+                    }
+                </button>
 
                 <hr />
 
@@ -44,3 +64,25 @@
         </div>
     </div>
 </div>
+
+@code {
+    private bool isResyncing = false;
+
+    private async Task ResyncInventory()
+    {
+        isResyncing = true;
+        try
+        {
+            var updatedCount = await Mediator.Send(new ResyncInventoryCommand());
+            await ToastService.ShowSuccess($"Resync complete. Updated {updatedCount} items.");
+        }
+        catch (Exception ex)
+        {
+            await ToastService.ShowError($"Error during resync: {ex.Message}");
+        }
+        finally
+        {
+            isResyncing = false;
+        }
+    }
+}

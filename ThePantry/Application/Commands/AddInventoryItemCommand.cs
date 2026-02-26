@@ -11,6 +11,7 @@ public record AddInventoryItemCommand(
     string Category,
     int OnHandCount,
     int MinimumThreshold,
+    string? ImageUrl = null,
     List<string>? Skus = null
 ) : IRequest<InventoryItem>;
 
@@ -34,6 +35,12 @@ public class AddInventoryItemHandler : IRequestHandler<AddInventoryItemCommand, 
         {
             // Update existing item instead of creating a new one
             existingItem.OnHandCount += request.OnHandCount;
+            
+            if (string.IsNullOrEmpty(existingItem.ImageUrl) && !string.IsNullOrEmpty(request.ImageUrl))
+            {
+                existingItem.ImageUrl = request.ImageUrl;
+            }
+
             if (request.Skus != null)
             {
                 foreach (var sku in request.Skus.Where(s => !string.IsNullOrWhiteSpace(s)))
@@ -54,6 +61,7 @@ public class AddInventoryItemHandler : IRequestHandler<AddInventoryItemCommand, 
             Name = request.Name,
             Description = request.Description,
             Category = request.Category,
+            ImageUrl = request.ImageUrl,
             OnHandCount = request.OnHandCount,
             MinimumThreshold = request.MinimumThreshold,
             CreatedDate = DateTime.UtcNow

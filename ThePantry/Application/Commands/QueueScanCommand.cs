@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using ThePantry.Data;
 using ThePantry.Domain;
 
@@ -14,12 +15,12 @@ public record QueueScanCommand(
 public class QueueScanHandler : IRequestHandler<QueueScanCommand, ScanQueueItem>
 {
     private readonly ApplicationDbContext _context;
-    private readonly Microsoft.AspNetCore.Hosting.IWebHostEnvironment _environment;
+    private readonly IConfiguration _configuration;
     
-    public QueueScanHandler(ApplicationDbContext context, Microsoft.AspNetCore.Hosting.IWebHostEnvironment environment)
+    public QueueScanHandler(ApplicationDbContext context, IConfiguration configuration)
     {
         _context = context;
-        _environment = environment;
+        _configuration = configuration;
     }
     
     public async Task<ScanQueueItem> Handle(QueueScanCommand request, CancellationToken cancellationToken)
@@ -47,16 +48,26 @@ public class QueueScanHandler : IRequestHandler<QueueScanCommand, ScanQueueItem>
                 
                 var bytes = Convert.FromBase64String(base64Data);
                 var fileName = $"scan_{Guid.NewGuid()}.jpg";
-                var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "scans");
+                var storagePath = _configuration["ScanStoragePath"] ?? "wwwroot/uploads/scans";
                 
-                if (!Directory.Exists(uploadsFolder))
+                if (!Directory.Exists(storagePath))
                 {
-                    Directory.CreateDirectory(uploadsFolder);
+                    Directory.CreateDirectory(storagePath);
                 }
                 
-                var filePath = Path.Combine(uploadsFolder, fileName);
+                var filePath = Path.Combine(storagePath, fileName);
                 await File.WriteAllBytesAsync(filePath, bytes, cancellationToken);
-                imagePath = $"/uploads/scans/{fileName}";
+                
+                // If it's in wwwroot, we want the relative web path
+                if (storagePath.Contains("wwwroot"))
+                {
+                    var relativePath = storagePath.Split("wwwroot").Last().Replace("\\", "/").Trim('/');
+                    imagePath = $"/{relativePath}/{fileName}";
+                }
+                else
+                {
+                    imagePath = filePath; // Fallback or handle external storage differently if needed
+                }
             }
             catch (Exception)
             {

@@ -42,6 +42,7 @@ public class GetInventoryWithUsageHistoryHandler : IRequestHandler<GetInventoryW
                 Name = i.Name,
                 Description = i.Description,
                 Category = i.Category,
+                ImageUrl = i.ImageUrl,
                 OnHandCount = i.OnHandCount,
                 MinimumThreshold = i.MinimumThreshold,
                 Skus = i.Skus.Select(s => s.Sku).ToList()

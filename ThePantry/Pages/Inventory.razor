@@ -66,6 +66,7 @@ else
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
+                        <th style="width: 60px;"></th>
                         <th @onclick='() => Sort("name")' style="cursor:pointer">
                             Name @GetSortIcon("name")
                         </th>
@@ -86,6 +87,9 @@ else
                     @foreach (var item in inventoryItems)
                     {
                         <tr>
+                            <td class="text-center align-middle">
+                                <ThePantry.Shared.Components.ProductImage ImageUrl="@item.ImageUrl" Size="ThePantry.Shared.Components.ProductImage.ImageSize.Thumb" Style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px;" />
+                            </td>
                             <td>
                                 <div class="fw-bold">@item.Name</div>
                                 @if (!string.IsNullOrEmpty(item.Description))
@@ -407,6 +411,7 @@ else
                 editingItem.Category,
                 editingItem.OnHandCount,
                 editingItem.MinimumThreshold,
+                editingItem.ImageUrl,
                 editingItem.Skus
             ));
             await ToastService.ShowSuccess($"{editingItem.Name} updated successfully");

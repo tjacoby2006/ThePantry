@@ -118,6 +118,10 @@ else if (activeTab == "manual")
                         <label class="form-label">SKUs (comma separated)</label>
                         <InputText class="form-control" @bind-Value="manualItem.Skus" placeholder="e.g. 123456, 789012" />
                     </div>
+                    <div class="col-12">
+                        <label class="form-label">Image URL</label>
+                        <InputText class="form-control" @bind-Value="manualItem.ImageUrl" placeholder="https://example.com/image.jpg" />
+                    </div>
                 </div>
                 
                 <button type="submit" class="btn btn-primary mt-3">Add Item</button>
@@ -181,6 +185,7 @@ else if (activeTab == "csv")
         public string Category { get; set; } = "Pantry";
         public int OnHandCount { get; set; } = 1;
         public int MinimumThreshold { get; set; } = 1;
+        public string? ImageUrl { get; set; }
         public string? Skus { get; set; }
     }
     
@@ -284,6 +289,7 @@ else if (activeTab == "csv")
                 manualItem.Category,
                 manualItem.OnHandCount,
                 manualItem.MinimumThreshold,
+                manualItem.ImageUrl,
                 skuList
             ));
 
@@ -331,7 +337,7 @@ else if (activeTab == "csv")
                     var skus = skusRaw?.Split(';', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList();
 
                     await Mediator.Send(new AddInventoryItemCommand(
-                        name, description, category, onHand, min, skus
+                        name, description, category, onHand, min, null, skus
                     ));
                     successCount++;
                 }

@@ -37,7 +37,8 @@ else
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">Item Information</h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body text-center">
+                    <ThePantry.Shared.Components.ProductImage ImageUrl="@inventoryItem.ImageUrl" Size="ThePantry.Shared.Components.ProductImage.ImageSize.Medium" Style="max-width: 100%; height: 200px; object-fit: contain; margin-bottom: 1rem;" />
                     <h4 class="card-title">@inventoryItem.Name</h4>
                     <p class="text-muted">@inventoryItem.Description</p>
                     <hr />

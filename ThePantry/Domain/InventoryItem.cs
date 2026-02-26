@@ -6,6 +6,7 @@ public class InventoryItem
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string Category { get; set; } = "Pantry";
+    public string? ImageUrl { get; set; }
     public int OnHandCount { get; set; }
     public int MinimumThreshold { get; set; }
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;

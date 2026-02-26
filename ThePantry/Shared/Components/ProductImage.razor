@@ -1,0 +1,57 @@
+@using System.Text.RegularExpressions
+
+@if (!string.IsNullOrEmpty(ImageUrl))
+{
+    <img src="@GetFormattedImageUrl()" class="@Class" style="@Style" alt="Product Image" />
+}
+else
+{
+    <div class="bg-light d-flex align-items-center justify-content-center @Class" style="@Style">
+        <span class="oi oi-image text-muted"></span>
+    </div>
+}
+
+@code {
+    [Parameter] public string? ImageUrl { get; set; }
+    [Parameter] public ImageSize Size { get; set; } = ImageSize.Medium;
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+
+    public enum ImageSize
+    {
+        Small,  // 100px
+        Medium, // 400px
+        Large,  // Full
+        Thumb   // 100px (small)
+    }
+
+    private string GetFormattedImageUrl()
+    {
+        if (string.IsNullOrEmpty(ImageUrl)) return string.Empty;
+
+        // OpenFoodFacts image URL pattern: https://images.openfoodfacts.org/images/products/301/762/042/2003/1.jpg
+        // We can get different sizes by inserting .100.jpg or .400.jpg before the extension
+        // See: https://openfoodfacts.github.io/openfoodfacts-server/api/how-to-download-images/
+
+        if (!ImageUrl.Contains("openfoodfacts.org")) return ImageUrl;
+
+        string suffix = Size switch
+        {
+            ImageSize.Small => ".100.jpg",
+            ImageSize.Thumb => ".100.jpg",
+            ImageSize.Medium => ".400.jpg",
+            _ => ".jpg"
+        };
+
+        if (Size == ImageSize.Large) return ImageUrl;
+
+        // Replace the last .jpg or .png with the suffix
+        var lastDotIndex = ImageUrl.LastIndexOf('.');
+        if (lastDotIndex != -1)
+        {
+            return ImageUrl.Substring(0, lastDotIndex) + suffix;
+        }
+
+        return ImageUrl;
+    }
+}

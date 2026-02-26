@@ -29,6 +29,7 @@ public class InventoryItemDto
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string Category { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; }
     public int OnHandCount { get; set; }
     public int MinimumThreshold { get; set; }
     public List<string> Skus { get; set; } = new();
@@ -90,6 +91,7 @@ public class GetInventoryListHandler : IRequestHandler<GetInventoryListQuery, In
                 Name = i.Name,
                 Description = i.Description,
                 Category = i.Category,
+                ImageUrl = i.ImageUrl,
                 OnHandCount = i.OnHandCount,
                 MinimumThreshold = i.MinimumThreshold,
                 Skus = i.Skus.Select(s => s.Sku).ToList()

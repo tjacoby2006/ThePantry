@@ -88,6 +88,7 @@ public class ScanProcessingHostedService : BackgroundService
                             Name = result.Name,
                             Description = result.Description,
                             Category = "Pantry",
+                            ImageUrl = result.ImageUrl,
                             OnHandCount = 1,
                             MinimumThreshold = 1,
                             CreatedDate = DateTime.UtcNow
