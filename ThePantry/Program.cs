@@ -1,6 +1,9 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using ThePantry.Application.Services;
 using ThePantry.Data;
 using ThePantry.Services;
@@ -14,6 +17,17 @@ builder.Services.AddServerSideBlazor()
     {
         options.MaximumReceiveMessageSize = 1024 * 1024; // 1MB
     });
+
+// Authentication
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/login";
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+        options.SlidingExpiration = true;
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddHttpContextAccessor();
 
 // Database - SQLite
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -51,6 +65,9 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
 
@@ -74,6 +91,42 @@ app.MapGet("/uploads/scans/{filename}", async (string filename) =>
         return Results.File(filePath);
     }
     return Results.NotFound();
+});
+
+// Authentication API
+app.MapPost("/api/auth/login", async (HttpContext context, IConfiguration config) =>
+{
+    var form = await context.Request.ReadFormAsync();
+    var password = form["password"].ToString();
+    var rememberMe = form["rememberMe"].ToString().ToLower() == "true";
+
+    var appPassword = config["AppPassword"] ?? "pantrypassword";
+    if (password == appPassword)
+    {
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, "PantryUser"),
+            new Claim(ClaimTypes.Role, "User")
+        };
+
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(identity);
+        
+        await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, new AuthenticationProperties
+        {
+            IsPersistent = rememberMe,
+            ExpiresUtc = rememberMe ? DateTimeOffset.UtcNow.AddDays(30) : null
+        });
+
+        return Results.Redirect("/");
+    }
+    return Results.Redirect("/login?error=invalid");
+});
+
+app.MapGet("/api/auth/logout", async (HttpContext context) =>
+{
+    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    return Results.Redirect("/login");
 });
 
 // Initialize database
