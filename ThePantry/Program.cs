@@ -66,6 +66,17 @@ app.MapGet("/api/backup", async (ApplicationDbContext context) =>
     return Results.NotFound();
 });
 
+app.MapGet("/uploads/scans/{filename}", async (string filename) =>
+{
+    var filePath = Path.Combine(scanStoragePath, filename);
+    if (File.Exists(filePath))
+    {
+        var bytes = await File.ReadAllBytesAsync(filePath);
+        return Results.File(bytes, "application/octet-stream", filename);
+    }
+    return Results.NotFound();
+});
+
 // Initialize database
 using (var scope = app.Services.CreateScope())
 {
