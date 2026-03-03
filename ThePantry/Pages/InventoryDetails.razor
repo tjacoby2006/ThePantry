@@ -1,18 +1,38 @@
 @page "/inventory/details/{id:int}"
 @using ThePantry.Application.Queries
+@using ThePantry.Application.Commands
+@using ThePantry.Application.Services
 @using ThePantry.Domain
 @using ThePantry.Services
 @inject IMediator Mediator
 @inject ToastService ToastService
 @inject NavigationManager NavigationManager
+@inject IProductLookupService ProductLookupService
 
 <PageTitle>Details: @(inventoryItem?.Name ?? "Item") - The Pantry</PageTitle>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3>Inventory Item Details</h3>
-    <button class="btn btn-outline-secondary" @onclick='() => NavigationManager.NavigateTo("inventory")'>
-        <span class="oi oi-arrow-left"></span> Back to Inventory
-    </button>
+    <div>
+        @if (inventoryItem != null && inventoryItem.Skus != null && inventoryItem.Skus.Any())
+        {
+            <button class="btn btn-outline-primary me-2" @onclick="RefreshFromOpenFoodFacts" disabled="@isRefreshing">
+                @if (isRefreshing)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span class="ms-1">Refreshing...</span>
+                }
+                else
+                {
+                    <span class="oi oi-reload"></span>
+                    <span class="ms-1">Refresh from OpenFoodFacts</span>
+                }
+            </button>
+        }
+        <button class="btn btn-outline-secondary" @onclick='() => NavigationManager.NavigateTo("inventory")'>
+            <span class="oi oi-arrow-left"></span> Back to Inventory
+        </button>
+    </div>
 </div>
 
 @if (isLoading)
@@ -115,11 +135,17 @@ else
     [Parameter] public int id { get; set; }
     
     private bool isLoading = true;
+    private bool isRefreshing = false;
     private InventoryItemDto? inventoryItem;
     private List<UsageHistoryDto> usageHistory = new();
     private int totalUsageCount = 0;
     
     protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
     {
         try
         {
@@ -136,6 +162,57 @@ else
         finally
         {
             isLoading = false;
+        }
+    }
+
+    private async Task RefreshFromOpenFoodFacts()
+    {
+        if (inventoryItem == null || inventoryItem.Skus == null || !inventoryItem.Skus.Any()) return;
+
+        isRefreshing = true;
+        try
+        {
+            // Use the first SKU for lookup
+            var sku = inventoryItem.Skus.First();
+            var result = await ProductLookupService.LookupAsync(sku);
+
+            if (result != null)
+            {
+                var command = new UpdateInventoryItemCommand(
+                    inventoryItem.Id,
+                    result.Name,
+                    result.Description ?? inventoryItem.Description,
+                    inventoryItem.Category,
+                    inventoryItem.OnHandCount,
+                    inventoryItem.MinimumThreshold,
+                    result.ImageUrl ?? inventoryItem.ImageUrl,
+                    inventoryItem.Skus
+                );
+
+                var success = await Mediator.Send(command);
+                if (success)
+                {
+                    await ToastService.ShowSuccess("Item updated from OpenFoodFacts");
+                    await LoadData();
+                }
+                else
+                {
+                    await ToastService.ShowError("Failed to update item");
+                }
+            }
+            else
+            {
+                await ToastService.ShowWarning("Product not found in OpenFoodFacts");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error refreshing from OpenFoodFacts: {ex.Message}");
+            await ToastService.ShowError("Error refreshing data");
+        }
+        finally
+        {
+            isRefreshing = false;
         }
     }
 }
