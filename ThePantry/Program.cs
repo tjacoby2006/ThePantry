@@ -72,7 +72,35 @@ app.MapGet("/api/backup", async (ApplicationDbContext context) =>
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    context.Database.Migrate();
+    
+    // Check for pending migrations
+    var pendingMigrations = context.Database.GetPendingMigrations().ToList();
+    if (pendingMigrations.Any())
+    {
+        Console.WriteLine($"Found {pendingMigrations.Count} pending migrations. Backing up database before applying...");
+        
+        var dbPath = context.Database.GetDbConnection().DataSource;
+        if (File.Exists(dbPath))
+        {
+            var dbDirectory = Path.GetDirectoryName(Path.GetFullPath(dbPath)) ?? app.Environment.ContentRootPath;
+            var backupDir = Path.Combine(dbDirectory, "backups");
+            if (!Directory.Exists(backupDir))
+            {
+                Directory.CreateDirectory(backupDir);
+            }
+            
+            var backupPath = Path.Combine(backupDir, $"pre_migration_{DateTime.Now:yyyyMMdd_HHmmss}.db");
+            File.Copy(dbPath, backupPath);
+            Console.WriteLine($"Backup created at: {backupPath}");
+        }
+        
+        context.Database.Migrate();
+        Console.WriteLine("Migrations applied successfully.");
+    }
+    else
+    {
+        context.Database.Migrate();
+    }
 }
 
 app.Run();

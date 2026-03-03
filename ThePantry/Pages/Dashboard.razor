@@ -103,7 +103,7 @@
                     <span class="input-group-text bg-white border-end-0">
                         <span class="oi oi-magnifying-glass text-muted"></span>
                     </span>
-                    <input type="text" class="form-control border-start-0" placeholder="Search items..." @bind="searchTerm" @bind:event="oninput" />
+                    <input type="text" class="form-control border-start-0" placeholder="Search items..." @bind="searchTerm" @bind:event="oninput" @onkeyup="HandleKeyUp" />
                 </div>
             </div>
             <div class="col-md-4">
@@ -250,6 +250,14 @@ else
     private async Task Search()
     {
         await LoadDashboardData();
+    }
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await Search();
+        }
     }
     
     private async Task DecrementItem(int itemId)
