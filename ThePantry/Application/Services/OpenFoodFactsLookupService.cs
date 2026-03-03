@@ -54,11 +54,12 @@ public class OpenFoodFactsLookupService : IProductLookupService
             try
             {
                 var cachedJson = await File.ReadAllTextAsync(cacheFilePath, cancellationToken);
-                var cachedResult = JsonSerializer.Deserialize<ProductLookupResult>(cachedJson);
-                if (cachedResult != null)
+                var apiResponse = JsonSerializer.Deserialize<OpenFoodFactsResponse>(cachedJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (apiResponse?.Status == 1 && apiResponse.Product != null)
                 {
-                    AddToMemoryCache(upc, cachedResult);
-                    return cachedResult;
+                    var result = MapToResult(upc, apiResponse.Product);
+                    AddToMemoryCache(upc, result);
+                    return result;
                 }
             }
             catch (Exception ex)
@@ -86,28 +87,21 @@ public class OpenFoodFactsLookupService : IProductLookupService
                 return null;
             }
             
-            var json = await response.Content.ReadFromJsonAsync<OpenFoodFactsResponse>(cancellationToken: cancellationToken);
+            var rawJson = await response.Content.ReadAsStringAsync(cancellationToken);
+            var apiResponse = JsonSerializer.Deserialize<OpenFoodFactsResponse>(rawJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
-            if (json?.Status != 1 || json.Product == null)
+            if (apiResponse?.Status != 1 || apiResponse.Product == null)
             {
                 _logger.LogInformation("Product not found in OpenFoodFacts for UPC {Upc}", upc);
                 return null;
             }
             
-            var result = new ProductLookupResult
-            {
-                Upc = upc,
-                Name = json.Product.Product_Name ?? json.Product.Generic_Name ?? "Unknown Product",
-                Description = json.Product.Generic_Name,
-                Brand = json.Product.Brands,
-                ImageUrl = json.Product.Image_Url ?? json.Product.Image_Front_Url
-            };
+            var result = MapToResult(upc, apiResponse.Product);
             
-            // 3. Save to file cache
+            // 3. Save raw JSON to file cache
             try
             {
-                var resultJson = JsonSerializer.Serialize(result);
-                await File.WriteAllTextAsync(cacheFilePath, resultJson, cancellationToken);
+                await File.WriteAllTextAsync(cacheFilePath, rawJson, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -128,6 +122,18 @@ public class OpenFoodFactsLookupService : IProductLookupService
         {
             _rateLimiter.Release();
         }
+    }
+
+    private static ProductLookupResult MapToResult(string upc, OpenFoodFactsProduct product)
+    {
+        return new ProductLookupResult
+        {
+            Upc = upc,
+            Name = product.Product_Name ?? product.Generic_Name ?? "Unknown Product",
+            Description = product.Generic_Name,
+            Brand = product.Brands,
+            ImageUrl = product.Image_Url ?? product.Image_Front_Url
+        };
     }
 
     private void AddToMemoryCache(string upc, ProductLookupResult result)
