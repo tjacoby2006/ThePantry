@@ -71,8 +71,7 @@ app.MapGet("/uploads/scans/{filename}", async (string filename) =>
     var filePath = Path.Combine(scanStoragePath, filename);
     if (File.Exists(filePath))
     {
-        var bytes = await File.ReadAllBytesAsync(filePath);
-        return Results.File(bytes, "application/octet-stream", filename);
+        return Results.File(filePath);
     }
     return Results.NotFound();
 });
