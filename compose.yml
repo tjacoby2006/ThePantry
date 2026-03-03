@@ -1,0 +1,17 @@
+services:
+  thepantry:
+    image: thepantry:latest
+    build:
+      context: .
+      dockerfile: ThePantry/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    volumes:
+      - pantry-data:/app/Data
+    restart: always
+
+volumes:
+  pantry-data:

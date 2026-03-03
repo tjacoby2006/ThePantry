@@ -8,10 +8,8 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - pantry-data:/app/data
+      - ./data/db:/db
+      - ./data/uploads:/uploads
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-
-volumes:
-  pantry-data:
-    driver: local
+    restart: unless-stopped
