@@ -7,13 +7,14 @@ public class OpenFoodFactsLookupService : IProductLookupService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<OpenFoodFactsLookupService> _logger;
+    private readonly string _cachePath;
     private static readonly SemaphoreSlim _rateLimiter = new(1, 1);
     private static DateTime _lastRequestTime = DateTime.MinValue;
-    private static readonly TimeSpan _minInterval = TimeSpan.FromMilliseconds(800); // ~75 requests per minute (60000 / 75 = 800ms)
+    private static readonly TimeSpan _minInterval = TimeSpan.FromMilliseconds(60000/50); // 50 requests per minute
     
-    // Simple in-memory cache
-    private static readonly Dictionary<string, ProductLookupResult> _cache = new();
-    private const int MaxCacheSize = 500;
+    // Simple in-memory cache for performance, but we'll also use file-based cache
+    private static readonly Dictionary<string, ProductLookupResult> _memoryCache = new();
+    private const int MaxMemoryCacheSize = 500;
     
     public OpenFoodFactsLookupService(HttpClient httpClient, ILogger<OpenFoodFactsLookupService> logger, IConfiguration configuration)
     {
@@ -22,6 +23,17 @@ public class OpenFoodFactsLookupService : IProductLookupService
         var baseAddress = configuration["OpenFoodFacts:BaseAddress"] ?? "https://world.openfoodfacts.org/";
         _httpClient.BaseAddress = new Uri(baseAddress);
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "ThePantry/1.0 (Home Pantry Inventory App)");
+        
+        _cachePath = configuration["ProductCachePath"] ?? "uploads/product_cache";
+        if (!Path.IsPathRooted(_cachePath))
+        {
+            _cachePath = Path.Combine(AppContext.BaseDirectory, _cachePath);
+        }
+        
+        if (!Directory.Exists(_cachePath))
+        {
+            Directory.CreateDirectory(_cachePath);
+        }
     }
     
     public async Task<ProductLookupResult?> LookupAsync(string upc, CancellationToken cancellationToken = default)
@@ -29,10 +41,30 @@ public class OpenFoodFactsLookupService : IProductLookupService
         if (string.IsNullOrWhiteSpace(upc))
             return null;
         
-        // Check cache first
-        if (_cache.TryGetValue(upc, out var cached))
+        // 1. Check memory cache first
+        if (_memoryCache.TryGetValue(upc, out var cached))
         {
             return cached;
+        }
+
+        // 2. Check file cache
+        var cacheFilePath = Path.Combine(_cachePath, $"{upc}.json");
+        if (File.Exists(cacheFilePath))
+        {
+            try
+            {
+                var cachedJson = await File.ReadAllTextAsync(cacheFilePath, cancellationToken);
+                var cachedResult = JsonSerializer.Deserialize<ProductLookupResult>(cachedJson);
+                if (cachedResult != null)
+                {
+                    AddToMemoryCache(upc, cachedResult);
+                    return cachedResult;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reading cached product for UPC {Upc}", upc);
+            }
         }
         
         await _rateLimiter.WaitAsync(cancellationToken);
@@ -71,14 +103,19 @@ public class OpenFoodFactsLookupService : IProductLookupService
                 ImageUrl = json.Product.Image_Url ?? json.Product.Image_Front_Url
             };
             
-            // Add to cache
-            if (_cache.Count >= MaxCacheSize)
+            // 3. Save to file cache
+            try
             {
-                // Remove oldest entry (simple FIFO)
-                var firstKey = _cache.Keys.First();
-                _cache.Remove(firstKey);
+                var resultJson = JsonSerializer.Serialize(result);
+                await File.WriteAllTextAsync(cacheFilePath, resultJson, cancellationToken);
             }
-            _cache[upc] = result;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving product to cache for UPC {Upc}", upc);
+            }
+
+            // 4. Add to memory cache
+            AddToMemoryCache(upc, result);
             
             return result;
         }
@@ -91,6 +128,16 @@ public class OpenFoodFactsLookupService : IProductLookupService
         {
             _rateLimiter.Release();
         }
+    }
+
+    private void AddToMemoryCache(string upc, ProductLookupResult result)
+    {
+        if (_memoryCache.Count >= MaxMemoryCacheSize)
+        {
+            var firstKey = _memoryCache.Keys.First();
+            _memoryCache.Remove(firstKey);
+        }
+        _memoryCache[upc] = result;
     }
 }
 
