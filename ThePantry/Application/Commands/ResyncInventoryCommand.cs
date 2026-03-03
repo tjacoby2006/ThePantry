@@ -38,20 +38,22 @@ public class ResyncInventoryHandler : IRequestHandler<ResyncInventoryCommand, in
             {
                 bool changed = false;
 
-                if (string.IsNullOrWhiteSpace(item.ImageUrl) && !string.IsNullOrWhiteSpace(result.ImageUrl))
+                if (item.ImageUrl != result.ImageUrl && !string.IsNullOrWhiteSpace(result.ImageUrl))
                 {
                     item.ImageUrl = result.ImageUrl;
                     changed = true;
                 }
 
-                if (string.IsNullOrWhiteSpace(item.Description) && !string.IsNullOrWhiteSpace(result.Description))
+                if (item.Description != result.Description && !string.IsNullOrWhiteSpace(result.Description))
                 {
                     item.Description = result.Description;
                     changed = true;
                 }
 
-                // Only update name if it's currently generic or empty
-                if (string.IsNullOrWhiteSpace(item.Name) || item.Name.StartsWith("Unknown Product", StringComparison.OrdinalIgnoreCase))
+                // Update name if it's currently generic, empty, or different from the result
+                if (string.IsNullOrWhiteSpace(item.Name) || 
+                    item.Name.StartsWith("Unknown Product", StringComparison.OrdinalIgnoreCase) ||
+                    (item.Name != result.Name && !string.IsNullOrWhiteSpace(result.Name)))
                 {
                     item.Name = result.Name;
                     changed = true;
