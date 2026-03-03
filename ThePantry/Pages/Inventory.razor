@@ -1,5 +1,6 @@
 @page "/inventory"
 @using ThePantry.Application.Queries
+@using ThePantry.Application.Commands
 @using ThePantry.Domain
 @using ThePantry.Services
 @using System.Text
@@ -9,7 +10,15 @@
 
 <PageTitle>Inventory - The Pantry</PageTitle>
 
-<h1>Inventory</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Inventory</h1>
+    @if (selectedItemIds.Any())
+    {
+        <button class="btn btn-warning" @onclick="CombineSelectedItems" disabled="@(selectedItemIds.Count < 2)">
+            <span class="oi oi-layers"></span> Combine Selected (@selectedItemIds.Count)
+        </button>
+    }
+</div>
 
 <div class="card mb-4">
     <div class="card-body">
@@ -66,6 +75,9 @@ else
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" @onchange="ToggleSelectAll" checked="@IsAllSelected" />
+                        </th>
                         <th style="width: 60px;"></th>
                         <th @onclick='() => Sort("name")' style="cursor:pointer">
                             Name @GetSortIcon("name")
@@ -87,6 +99,11 @@ else
                     @foreach (var item in inventoryItems)
                     {
                         <tr>
+                            <td class="text-center align-middle">
+                                <input type="checkbox" class="form-check-input" 
+                                       checked="@selectedItemIds.Contains(item.Id)" 
+                                       @onchange="@(e => ToggleItemSelection(item.Id, e.Value))" />
+                            </td>
                             <td class="text-center align-middle">
                                 <ThePantry.Shared.Components.ProductImage ImageUrl="@item.ImageUrl" Size="ThePantry.Shared.Components.ProductImage.ImageSize.Thumb" Style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px;" />
                             </td>
@@ -249,6 +266,72 @@ else
     private InventoryItemDto? editingItem;
     private bool showDeleteModal = false;
     private InventoryItemDto? itemToDelete;
+    private List<int> selectedItemIds = new();
+
+    private bool IsAllSelected => inventoryItems != null && inventoryItems.Any() && inventoryItems.All(i => selectedItemIds.Contains(i.Id));
+
+    private void ToggleItemSelection(int itemId, object? checkedValue)
+    {
+        bool isChecked = checkedValue is bool b && b;
+        if (isChecked)
+        {
+            if (!selectedItemIds.Contains(itemId))
+            {
+                selectedItemIds.Add(itemId);
+            }
+        }
+        else
+        {
+            selectedItemIds.Remove(itemId);
+        }
+    }
+
+    private void ToggleSelectAll(ChangeEventArgs e)
+    {
+        bool isChecked = e.Value is bool b && b;
+        if (isChecked && inventoryItems != null)
+        {
+            foreach (var item in inventoryItems)
+            {
+                if (!selectedItemIds.Contains(item.Id))
+                {
+                    selectedItemIds.Add(item.Id);
+                }
+            }
+        }
+        else if (inventoryItems != null)
+        {
+            foreach (var item in inventoryItems)
+            {
+                selectedItemIds.Remove(item.Id);
+            }
+        }
+    }
+
+    private async Task CombineSelectedItems()
+    {
+        if (selectedItemIds.Count < 2) return;
+
+        try
+        {
+            var result = await Mediator.Send(new CombineInventoryItemsCommand(selectedItemIds.ToList()));
+            if (result)
+            {
+                await ToastService.ShowSuccess("Items combined successfully");
+                selectedItemIds.Clear();
+                await LoadInventory();
+            }
+            else
+            {
+                await ToastService.ShowError("Failed to combine items");
+            }
+        }
+        catch (Exception ex)
+        {
+            await ToastService.ShowError("Error combining items");
+            Console.WriteLine($"Error combining items: {ex.Message}");
+        }
+    }
     
     protected override async Task OnInitializedAsync()
     {
