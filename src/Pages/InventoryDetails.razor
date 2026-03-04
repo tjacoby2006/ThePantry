@@ -180,12 +180,12 @@ else
             {
                 var command = new UpdateInventoryItemCommand(
                     inventoryItem.Id,
-                    result.Name,
+                    inventoryItem.Name.StartsWith("Unknown Product", StringComparison.OrdinalIgnoreCase) ? result.Name : inventoryItem.Name,
                     result.Description ?? inventoryItem.Description,
                     inventoryItem.Category,
                     inventoryItem.OnHandCount,
                     inventoryItem.MinimumThreshold,
-                    result.ImageUrl ?? inventoryItem.ImageUrl,
+                    inventoryItem.ImageUrl ?? result.ImageUrl,
                     inventoryItem.Skus
                 );
 

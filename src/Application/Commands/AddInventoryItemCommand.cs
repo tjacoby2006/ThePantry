@@ -61,7 +61,7 @@ public class AddInventoryItemHandler : IRequestHandler<AddInventoryItemCommand, 
             Name = request.Name,
             Description = request.Description,
             Category = request.Category,
-            ImageUrl = request.ImageUrl,
+            ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl,
             OnHandCount = request.OnHandCount,
             MinimumThreshold = request.MinimumThreshold,
             CreatedDate = DateTime.UtcNow
