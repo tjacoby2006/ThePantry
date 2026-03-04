@@ -9,43 +9,32 @@ A Blazor Server application for managing your home pantry, inventory, and shoppi
 - **Shopping List**: Automatically track low-stock items and mark them as purchased.
 - **Scan Monitor**: Background processing of scanned items.
 - **Dashboard**: Quick overview of your pantry status.
+- **Combine Products**: Buying different brands of the same product? Combine them under a single name with multiple SKUs.
 
 ## Tech Stack
 
-- **Frontend**: Blazor Server (.NET 9/10)
+- **Frontend**: Blazor Server (.NET 10)
 - **Database**: Entity Framework Core with SQLite
 - **Patterns**: MediatR for CQRS (Commands/Queries)
 - **Background Tasks**: Hosted Services for scan processing
 
-## Getting Started
-
-### Prerequisites
-
-- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or later
-- [Docker](https://www.docker.com/get-started) (optional, for containerized deployment)
-
-### Local Development
-
-1. Clone the repository.
-2. Navigate to the project directory:
-   ```bash
-   cd ThePantry
-   ```
-3. Run the application:
-   ```bash
-   dotnet run --project ThePantry/ThePantry.csproj
-   ```
-4. Open your browser to `https://localhost:5001` or `http://localhost:5000`.
-
 ## Docker Deployment
 
-You can run the application using Docker Compose:
+You can run the application using Docker Compose. An example configuration is provided in `compose.example.yml`.
 
-```bash
-docker-compose up -d
-```
-
-The application will be available at `http://localhost:8080`.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/tjacoby2006/ThePantry ThePantry
+   ```
+2. Copy the example compose file and adjust as needed:
+   ```bash
+   cp ThePantry/compose.example.yml compose.yml
+   ```
+3. Run the container:
+   ```bash
+   docker compose up -d
+   ```
+4. Open your browser to `https://localhost:8080`.
 
 ## Project Structure
 
