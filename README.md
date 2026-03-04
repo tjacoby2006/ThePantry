@@ -1,6 +1,6 @@
 # ThePantry
 
-A Blazor Server application for managing your home pantry, inventory, and shopping lists. It features UPC scanning integration with OpenFoodFacts for easy item entry.
+A completely vibe coded, AI slopped Blazor Server application for managing your home pantry, inventory, and shopping lists. It features UPC scanning integration with OpenFoodFacts for easy item entry.
 
 ## Features
 
