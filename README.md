@@ -36,6 +36,19 @@ You can run the application using Docker Compose. An example configuration is pr
    ```
 4. Open your browser to `https://localhost:8080`.
 
+### Updating
+
+You can update easily using the following commands from the docker compose folder:
+
+```bash
+cd ThePantry
+git pull
+cd ..
+docker compose build
+docker compose down
+docker compose up -d
+```
+
 ## Project Structure
 
 - `ThePantry/Domain`: Core entities (`InventoryItem`, `ProductSku`, etc.)
