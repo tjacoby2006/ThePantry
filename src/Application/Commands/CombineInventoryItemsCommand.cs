@@ -52,6 +52,7 @@ public class CombineInventoryItemsHandler : IRequestHandler<CombineInventoryItem
             primaryItem = items.First();
         }
 
+        primaryItem.ImageUrl = string.IsNullOrWhiteSpace(primaryItem.ImageUrl) ? null : primaryItem.ImageUrl;
         primaryItem.ImageUrl ??= items.Select(i => i.ImageUrl).FirstOrDefault(url => !string.IsNullOrWhiteSpace(url));
 
         var otherItems = items.Where(i => i.Id != primaryItem.Id).ToList();
