@@ -90,7 +90,16 @@ app.MapGet("/uploads/scans/{filename}", async (string filename) =>
     var filePath = Path.Combine(scanStoragePath, filename);
     if (File.Exists(filePath))
     {
-        return Results.File(filePath);
+        var extension = Path.GetExtension(filename).ToLowerInvariant();
+        var contentType = extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
+        return Results.File(filePath, contentType);
     }
     return Results.NotFound();
 });
