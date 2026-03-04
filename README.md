@@ -1,6 +1,6 @@
 # ThePantry
 
-A completely vibe coded, AI slopped Blazor Server application for managing your home pantry, inventory, and shopping lists. It features UPC scanning integration with OpenFoodFacts for easy item entry.
+A completely vibe coded/AI slopped Blazor Server application for managing your home pantry, inventory, and shopping lists- all without unit tests. It features UPC scanning integration with OpenFoodFacts for easy item entry.
 
 ## Features
 
@@ -48,11 +48,3 @@ docker compose build
 docker compose down
 docker compose up -d
 ```
-
-## Project Structure
-
-- `ThePantry/Domain`: Core entities (`InventoryItem`, `ProductSku`, etc.)
-- `ThePantry/Application`: Business logic, Commands, Queries, and Services.
-- `ThePantry/Data`: EF Core DbContext and Migrations.
-- `ThePantry/Pages`: Blazor components and UI logic.
-- `ThePantry/Services`: Background workers and utility services.
