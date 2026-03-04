@@ -26,9 +26,10 @@ You can run the application using Docker Compose. An example configuration is pr
    ```bash
    git clone https://github.com/tjacoby2006/ThePantry ThePantry
    ```
-2. Copy the example compose file and adjust as needed:
+2. Copy the example compose and env files and adjust as needed:
    ```bash
    cp ThePantry/compose.example.yml compose.yml
+   cp ThePantry/.env .env
    ```
 3. Run the container:
    ```bash

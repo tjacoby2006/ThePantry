@@ -20,7 +20,7 @@ public class OpenFoodFactsLookupService : IProductLookupService
     {
         _httpClient = httpClient;
         _logger = logger;
-        var baseAddress = configuration["OpenFoodFacts:BaseAddress"] ?? "https://world.openfoodfacts.org/";
+        var baseAddress = configuration["OPENFOODFACTS_ADDRESS"] ?? "https://world.openfoodfacts.org/";
         _httpClient.BaseAddress = new Uri(baseAddress);
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "ThePantry/1.0 (Home Pantry Inventory App)");
         

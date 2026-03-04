@@ -102,7 +102,7 @@ app.MapPost("/api/auth/login", async (HttpContext context, IConfiguration config
     var password = form["password"].ToString();
     var rememberMe = form["rememberMe"].ToString().ToLower() == "true";
 
-    var appPassword = config["AppPassword"] ?? "pantrypassword";
+    var appPassword = config["PASSWORD"] ?? "pantrypassword";
     if (password == appPassword)
     {
         var claims = new List<Claim>
