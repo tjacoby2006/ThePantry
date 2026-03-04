@@ -5,7 +5,7 @@ A Blazor Server application for managing your home pantry, inventory, and shoppi
 ## Features
 
 - **Inventory Management**: Track items, quantities, and expiration dates.
-- **UPC Scanning**: Integration with OpenFoodFacts to automatically fetch product details.
+- **UPC Scanning**: Scan UPCs from your phone (with a satisfying ding) and integrate with OpenFoodFacts to automatically fetch product details.
 - **Shopping List**: Automatically track low-stock items and mark them as purchased.
 - **Scan Monitor**: Background processing of scanned items.
 - **Dashboard**: Quick overview of your pantry status.
@@ -22,7 +22,7 @@ A Blazor Server application for managing your home pantry, inventory, and shoppi
 
 You can run the application using Docker Compose. An example configuration is provided in `compose.example.yml`.
 
-1. Clone the repository:
+1. Clone the repository from your target docker folder:
    ```bash
    git clone https://github.com/tjacoby2006/ThePantry ThePantry
    ```
