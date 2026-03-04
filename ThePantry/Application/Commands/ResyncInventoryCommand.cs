@@ -52,8 +52,7 @@ public class ResyncInventoryHandler : IRequestHandler<ResyncInventoryCommand, in
 
                 // Update name if it's currently generic, empty, or different from the result
                 if (string.IsNullOrWhiteSpace(item.Name) || 
-                    item.Name.StartsWith("Unknown Product", StringComparison.OrdinalIgnoreCase) ||
-                    (item.Name != result.Name && !string.IsNullOrWhiteSpace(result.Name)))
+                    item.Name.StartsWith("Unknown Product", StringComparison.OrdinalIgnoreCase))
                 {
                     item.Name = result.Name;
                     changed = true;

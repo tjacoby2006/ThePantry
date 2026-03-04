@@ -52,6 +52,8 @@ public class CombineInventoryItemsHandler : IRequestHandler<CombineInventoryItem
             primaryItem = items.First();
         }
 
+        primaryItem.ImageUrl ??= items.Select(i => i.ImageUrl).FirstOrDefault(url => !string.IsNullOrWhiteSpace(url));
+
         var otherItems = items.Where(i => i.Id != primaryItem.Id).ToList();
 
         // Update ScanQueueItems to point to the primary item
