@@ -11,6 +11,9 @@ A completely vibe coded/AI slopped Blazor Server application for managing your h
 - **Dashboard**: Quick overview of your pantry status.
 - **Combine Products**: Buying different brands of the same product? Combine them under a single name with multiple SKUs.
 
+## Demo
+You can try The Pantry using the demo site, password is "ThePantry"- https://pantrydemo.0ar.org/
+
 ## Tech Stack
 
 - **Frontend**: Blazor Server (.NET 10)
