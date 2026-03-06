@@ -144,7 +144,6 @@ app.MapGet("/api/auth/logout", async (HttpContext context) =>
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    context.Database.EnsureCreated();
     // Check for pending migrations
     var pendingMigrations = context.Database.GetPendingMigrations().ToList();
     if (pendingMigrations.Any())
