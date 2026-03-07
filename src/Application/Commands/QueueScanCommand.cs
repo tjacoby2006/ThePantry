@@ -27,7 +27,7 @@ public class QueueScanHandler : IRequestHandler<QueueScanCommand, ScanQueueItem>
     {
         // Check for recent duplicate scans (within last 5 seconds) to prevent double-queuing
         var recentScan = await _context.ScanQueueItems
-            .Where(s => s.Upc == request.Upc && s.Timestamp > DateTime.UtcNow.AddSeconds(-2))
+            .Where(s => s.Upc == request.Upc && s.Timestamp > DateTime.UtcNow.AddSeconds(-1))
             .FirstOrDefaultAsync(cancellationToken);
 
         if (recentScan != null)
