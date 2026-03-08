@@ -1,0 +1,223 @@
+@page "/scan"
+@page "/scan/{Mode}"
+@using MediatR
+@using ThePantry.Application.Commands
+@using ThePantry.Services
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IMediator Mediator
+@inject ILogger<Scan> Logger
+@inject ToastService ToastService
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+
+<PageTitle>Scan - The Pantry</PageTitle>
+
+<div class="container-fluid p-0">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">Inventory Scanner</h4>
+                <div class="btn-group" role="group" aria-label="Scan Mode">
+                    <button type="button" class="btn @(CurrentMode == "add" ? "btn-primary" : "btn-outline-primary")" @onclick='() => SetMode("add")'>
+                        <span class="oi oi-plus me-1"></span> Add
+                    </button>
+                    <button type="button" class="btn @(CurrentMode == "open" ? "btn-warning" : "btn-outline-warning")" @onclick='() => SetMode("open")'>
+                        <span class="oi oi-external-link me-1"></span> Open
+                    </button>
+                    <button type="button" class="btn @(CurrentMode == "use" ? "btn-danger" : "btn-outline-danger")" @onclick='() => SetMode("use")'>
+                        <span class="oi oi-minus me-1"></span> Use
+                    </button>
+                </div>
+            </div>
+
+            <div class="scanner-container position-relative bg-dark rounded overflow-hidden mb-3" style="min-height: 300px;">
+                <div id="reader" style="width: 100%;"></div>
+                @if (isProcessing)
+                {
+                    <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-50" style="z-index: 10;">
+                        <div class="spinner-border text-light" role="status">
+                            <span class="visually-hidden">Processing...</span>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="input-group mb-3">
+                <input type="text" class="form-control" placeholder="Enter UPC manually..." @bind="manualUpc" @bind:event="oninput" @onkeyup="HandleKeyUp" />
+                <button class="btn btn-secondary" type="button" @onclick="ProcessManualUpc" disabled="@(string.IsNullOrWhiteSpace(manualUpc) || isProcessing)">
+                    Process
+                </button>
+            </div>
+
+            @if (lastProcessedItem != null)
+            {
+                <div class="alert @GetAlertClass() d-flex align-items-center animate-fade-in">
+                    @if (!string.IsNullOrEmpty(lastProcessedItem.ImageUrl))
+                    {
+                        <img src="@lastProcessedItem.ImageUrl" alt="@lastProcessedItem.Name" class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;" />
+                    }
+                    else
+                    {
+                        <div class="rounded me-3 bg-secondary d-flex align-items-center justify-content-center text-white" style="width: 50px; height: 50px;">
+                            <span class="oi oi-image"></span>
+                        </div>
+                    }
+                    <div>
+                        <div class="fw-bold">@lastProcessedItem.Name</div>
+                        <div class="small">
+                            @if (CurrentMode == "add") { <span>Added! New count: @lastProcessedItem.OnHandCount</span> }
+                            else if (CurrentMode == "open") { <span>@(lastProcessedItem.IsOpened ? "Marked as Opened" : "Marked as Closed")</span> }
+                            else { <span>Used! Remaining: @lastProcessedItem.OnHandCount</span> }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .scanner-container #reader video {
+        object-fit: cover;
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 300px;
+    }
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+    @@keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+@code {
+    [Parameter] public string? Mode { get; set; }
+    private string CurrentMode => (Mode?.ToLower() ?? "add");
+    private string manualUpc = "";
+    private bool isProcessing = false;
+    private ThePantry.Domain.InventoryItem? lastProcessedItem;
+    private DotNetObjectReference<Scan>? objRef;
+    private bool isScannerRunning = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await StartScanner();
+        }
+    }
+
+    private void SetMode(string newMode)
+    {
+        NavigationManager.NavigateTo($"/scan/{newMode}");
+        lastProcessedItem = null;
+    }
+
+    private async Task StartScanner()
+    {
+        if (isScannerRunning) return;
+        try
+        {
+            objRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("barcodeScanner.start", objRef, "reader");
+            isScannerRunning = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to start scanner");
+            await ToastService.ShowError("Could not access camera. Please ensure permissions are granted.");
+        }
+    }
+
+    private async Task StopScanner()
+    {
+        if (!isScannerRunning) return;
+        try
+        {
+            await JS.InvokeVoidAsync("barcodeScanner.stop");
+            isScannerRunning = false;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to stop scanner");
+        }
+    }
+
+    [JSInvokable]
+    public async Task HandleBarcodeDetected(string code, string? imageData)
+    {
+        if (isProcessing) return;
+        await ProcessUpc(code);
+    }
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(manualUpc))
+        {
+            await ProcessManualUpc();
+        }
+    }
+
+    private async Task ProcessManualUpc()
+    {
+        var upc = manualUpc;
+        manualUpc = "";
+        await ProcessUpc(upc);
+    }
+
+    private async Task ProcessUpc(string upc)
+    {
+        isProcessing = true;
+        StateHasChanged();
+
+        try
+        {
+            ThePantry.Domain.InventoryItem? result = null;
+
+            switch (CurrentMode)
+            {
+                case "add":
+                    result = await Mediator.Send(new IncrementInventoryByScannerCommand(upc));
+                    await ToastService.ShowSuccess($"Added {result.Name}");
+                    break;
+                case "open":
+                    result = await Mediator.Send(new MarkAsOpenedByScannerCommand(upc));
+                    await ToastService.ShowInfo($"{(result?.IsOpened == true ? "Opened" : "Closed")} {result?.Name}");
+                    break;
+                case "use":
+                    result = await Mediator.Send(new DecrementInventoryByScannerCommand(upc));
+                    await ToastService.ShowWarning($"Used {result?.Name}");
+                    break;
+            }
+
+            lastProcessedItem = result;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error processing UPC {Upc} in mode {Mode}", upc, CurrentMode);
+            await ToastService.ShowError("Failed to process item.");
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetAlertClass() => CurrentMode switch
+    {
+        "add" => "alert-success",
+        "open" => "alert-warning",
+        "use" => "alert-danger",
+        _ => "alert-info"
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        await StopScanner();
+        objRef?.Dispose();
+    }
+}

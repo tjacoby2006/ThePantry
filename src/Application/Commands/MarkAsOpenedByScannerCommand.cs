@@ -6,31 +6,27 @@ using ThePantry.Domain;
 
 namespace ThePantry.Application.Commands;
 
-public record DecrementInventoryByScannerCommand(
-    string Upc,
-    int QuantityUsed = 1
-) : IRequest<InventoryItem?>;
+public record MarkAsOpenedByScannerCommand(string Upc) : IRequest<InventoryItem?>;
 
-public class DecrementInventoryByScannerHandler : IRequestHandler<DecrementInventoryByScannerCommand, InventoryItem?>
+public class MarkAsOpenedByScannerHandler : IRequestHandler<MarkAsOpenedByScannerCommand, InventoryItem?>
 {
     private readonly ApplicationDbContext _context;
     private readonly IProductLookupService _productLookupService;
-    
-    public DecrementInventoryByScannerHandler(ApplicationDbContext context, IProductLookupService productLookupService)
+
+    public MarkAsOpenedByScannerHandler(ApplicationDbContext context, IProductLookupService productLookupService)
     {
         _context = context;
         _productLookupService = productLookupService;
     }
-    
-    public async Task<InventoryItem?> Handle(DecrementInventoryByScannerCommand request, CancellationToken cancellationToken)
+
+    public async Task<InventoryItem?> Handle(MarkAsOpenedByScannerCommand request, CancellationToken cancellationToken)
     {
         var item = await _context.InventoryItems
             .Include(i => i.Skus)
             .FirstOrDefaultAsync(i => i.Skus.Any(s => s.Sku == request.Upc), cancellationToken);
-        
+
         if (item == null)
         {
-            // Create a new item with 0 on hand if not found
             var lookupResult = await _productLookupService.LookupAsync(request.Upc, cancellationToken);
             
             item = new InventoryItem
@@ -39,30 +35,21 @@ public class DecrementInventoryByScannerHandler : IRequestHandler<DecrementInven
                 Description = lookupResult?.Description ?? lookupResult?.Brand,
                 ImageUrl = lookupResult?.ImageUrl,
                 Category = "Uncategorized",
-                OnHandCount = 0,
+                OnHandCount = 1,
                 MinimumThreshold = 1,
                 CreatedDate = DateTime.UtcNow
             };
             
             item.Skus.Add(new ProductSku { Sku = request.Upc });
             _context.InventoryItems.Add(item);
-            await _context.SaveChangesAsync(cancellationToken);
         }
-        
-        item.OnHandCount = Math.Max(0, item.OnHandCount - request.QuantityUsed);
+
+        item.IsOpened = true;
+        item.OpenedDate = item.IsOpened ? DateTime.UtcNow : null;
         item.LastModifiedDate = DateTime.UtcNow;
-        
-        // Record usage history
-        var usageHistory = new UsageHistory
-        {
-            InventoryItemId = item.Id,
-            QuantityUsed = request.QuantityUsed,
-            Timestamp = DateTime.UtcNow
-        };
-        
-        _context.UsageHistories.Add(usageHistory);
+
         await _context.SaveChangesAsync(cancellationToken);
-        
+
         return item;
     }
 }
