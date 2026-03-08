@@ -115,6 +115,14 @@ else if (activeTab == "manual")
                         <InputNumber class="form-control" @bind-Value="manualItem.MinimumThreshold" />
                     </div>
                     <div class="col-md-6">
+                        <label class="form-label">Shelf Life (Days)</label>
+                        <InputNumber class="form-control" @bind-Value="manualItem.ShelfLifeDays" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Use Within (Days)</label>
+                        <InputNumber class="form-control" @bind-Value="manualItem.UseWithinDays" />
+                    </div>
+                    <div class="col-md-6">
                         <label class="form-label">SKUs (comma separated)</label>
                         <InputText class="form-control" @bind-Value="manualItem.Skus" placeholder="e.g. 123456, 789012" />
                     </div>
@@ -185,6 +193,8 @@ else if (activeTab == "csv")
         public string Category { get; set; } = "Pantry";
         public int OnHandCount { get; set; } = 1;
         public int MinimumThreshold { get; set; } = 1;
+        public int ShelfLifeDays { get; set; } = 30;
+        public int UseWithinDays { get; set; } = 7;
         public string? ImageUrl { get; set; }
         public string? Skus { get; set; }
     }
@@ -289,6 +299,8 @@ else if (activeTab == "csv")
                 manualItem.Category,
                 manualItem.OnHandCount,
                 manualItem.MinimumThreshold,
+                manualItem.ShelfLifeDays,
+                manualItem.UseWithinDays,
                 manualItem.ImageUrl,
                 skuList
             ));
@@ -337,7 +349,7 @@ else if (activeTab == "csv")
                     var skus = skusRaw?.Split(';', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList();
 
                     await Mediator.Send(new AddInventoryItemCommand(
-                        name, description, category, onHand, min, null, skus
+                        name, description, category, onHand, min, 30, 7, null, skus
                     ));
                     successCount++;
                 }

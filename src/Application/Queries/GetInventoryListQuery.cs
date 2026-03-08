@@ -32,9 +32,15 @@ public class InventoryItemDto
     public string? ImageUrl { get; set; }
     public int OnHandCount { get; set; }
     public int MinimumThreshold { get; set; }
+    public int ShelfLifeDays { get; set; }
+    public int UseWithinDays { get; set; }
+    public bool IsOpened { get; set; }
+    public DateTime? OpenedDate { get; set; }
+    public DateTime CreatedDate { get; set; }
     public List<string> Skus { get; set; } = new();
     public bool IsBelowThreshold => OnHandCount < MinimumThreshold;
     public int Deficit => Math.Max(0, MinimumThreshold - OnHandCount);
+    public DateTime ExpiryDate => CreatedDate.AddDays(ShelfLifeDays);
 }
 
 public class GetInventoryListHandler : IRequestHandler<GetInventoryListQuery, InventoryListResult>
@@ -94,6 +100,11 @@ public class GetInventoryListHandler : IRequestHandler<GetInventoryListQuery, In
                 ImageUrl = i.ImageUrl,
                 OnHandCount = i.OnHandCount,
                 MinimumThreshold = i.MinimumThreshold,
+                ShelfLifeDays = i.ShelfLifeDays,
+                UseWithinDays = i.UseWithinDays,
+                IsOpened = i.IsOpened,
+                OpenedDate = i.OpenedDate,
+                CreatedDate = i.CreatedDate,
                 Skus = i.Skus.Select(s => s.Sku).ToList()
             })
             .ToListAsync(cancellationToken);

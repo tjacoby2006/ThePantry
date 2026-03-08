@@ -11,6 +11,8 @@ public record AddInventoryItemCommand(
     string Category,
     int OnHandCount,
     int MinimumThreshold,
+    int ShelfLifeDays = 30,
+    int UseWithinDays = 7,
     string? ImageUrl = null,
     List<string>? Skus = null
 ) : IRequest<InventoryItem>;
@@ -64,6 +66,8 @@ public class AddInventoryItemHandler : IRequestHandler<AddInventoryItemCommand, 
             ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl,
             OnHandCount = request.OnHandCount,
             MinimumThreshold = request.MinimumThreshold,
+            ShelfLifeDays = request.ShelfLifeDays,
+            UseWithinDays = request.UseWithinDays,
             CreatedDate = DateTime.UtcNow
         };
 

@@ -45,6 +45,11 @@ public class GetInventoryWithUsageHistoryHandler : IRequestHandler<GetInventoryW
                 ImageUrl = i.ImageUrl,
                 OnHandCount = i.OnHandCount,
                 MinimumThreshold = i.MinimumThreshold,
+                ShelfLifeDays = i.ShelfLifeDays,
+                UseWithinDays = i.UseWithinDays,
+                IsOpened = i.IsOpened,
+                OpenedDate = i.OpenedDate,
+                CreatedDate = i.CreatedDate,
                 Skus = i.Skus.Select(s => s.Sku).ToList()
             })
             .FirstOrDefaultAsync(cancellationToken);

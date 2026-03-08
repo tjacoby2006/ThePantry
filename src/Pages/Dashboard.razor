@@ -47,6 +47,58 @@
     </div>
 </div>
 
+@if (useSoonItems != null && useSoonItems.Any())
+{
+    <div class="card mb-4 border-info">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Use Soon</h5>
+            <span class="badge bg-light text-dark">Expiring or Open</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Reason</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in useSoonItems)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">@item.Name</div>
+                                    @if (item.IsOpened)
+                                    {
+                                        <small class="text-primary"><span class="oi oi-envelope-open me-1"></span>Opened</small>
+                                    }
+                                </td>
+                                <td>
+                                    @if (item.IsOpened && (item.OpenedDate?.AddDays(item.UseWithinDays) - DateTime.UtcNow)?.TotalDays <= 3)
+                                    {
+                                        <span class="badge bg-warning text-dark">Use within @item.UseWithinDays days of opening</span>
+                                    }
+                                    else if ((item.ExpiryDate - DateTime.UtcNow).TotalDays <= 7)
+                                    {
+                                        <span class="badge bg-danger">Expiring soon (@item.ExpiryDate.ToLocalTime().ToString("d"))</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DecrementItem(item.Id)" title="Use Item">
+                                        <span class="oi oi-minus"></span>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
 @if (lowStockItems != null && lowStockItems.Any())
 {
     <div class="card mb-4">
@@ -154,10 +206,16 @@ else
                 {
                     <tr class="@(item.IsBelowThreshold ? "table-warning" : "")">
                         <td>
-                            <strong>@item.Name</strong>
+                            <div class="d-flex align-items-center">
+                                <strong>@item.Name</strong>
+                                @if (item.IsOpened)
+                                {
+                                    <span class="oi oi-envelope-open ms-2 text-primary" title="Opened"></span>
+                                }
+                            </div>
                             @if (!string.IsNullOrEmpty(item.Description))
                             {
-                                <br /><small class="text-muted">@item.Description</small>
+                                <small class="text-muted">@item.Description</small>
                             }
                         </td>
                         <td>@item.Category</td>
@@ -175,6 +233,9 @@ else
                         </td>
                         <td class="text-center">
                             <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-outline-warning" @onclick="() => ToggleOpened(item.Id)" title="@(item.IsOpened ? "Mark as Closed" : "Mark as Opened")">
+                                    <span class="oi @(item.IsOpened ? "oi-envelope-closed" : "oi-envelope-open")"></span>
+                                </button>
                                 <button class="btn btn-sm btn-outline-danger" @onclick="() => DecrementItem(item.Id)" title="Use Item">
                                     <span class="oi oi-minus"></span>
                                 </button>
@@ -193,6 +254,7 @@ else
 @code {
     private List<InventoryItemDto>? inventoryItems;
     private List<InventoryItemDto>? lowStockItems;
+    private List<InventoryItemDto>? useSoonItems;
     private int totalItemsCount;
     private int lowStockCount;
     private int pendingScansCount;
@@ -236,6 +298,17 @@ else
             // Load pending scans
             var scans = await Mediator.Send(new GetScanQueueQuery());
             pendingScansCount = scans.Count(s => s.Status == Domain.ScanStatus.Pending || s.Status == Domain.ScanStatus.Processing);
+
+            // Load "Use Soon" items
+            var allInventory = await Mediator.Send(new GetInventoryListQuery(PageSize: 1000));
+            useSoonItems = allInventory.Items
+                .Where(i => i.OnHandCount > 0 && (
+                    (i.IsOpened && i.OpenedDate.HasValue && (i.OpenedDate.Value.AddDays(i.UseWithinDays) - DateTime.UtcNow).TotalDays <= 3) ||
+                    (i.ExpiryDate - DateTime.UtcNow).TotalDays <= 7
+                ))
+                .OrderBy(i => i.IsOpened ? i.OpenedDate.Value.AddDays(i.UseWithinDays) : i.ExpiryDate)
+                .Take(5)
+                .ToList();
         }
         catch (Exception)
         {
@@ -250,6 +323,16 @@ else
     private async Task Search()
     {
         await LoadDashboardData();
+    }
+
+    private async Task ToggleOpened(int id)
+    {
+        var result = await Mediator.Send(new ToggleOpenedStatusCommand(id));
+        if (result != null)
+        {
+            await ToastService.ShowSuccess(result.IsOpened ? "Item marked as opened" : "Item marked as closed");
+            await LoadDashboardData();
+        }
     }
 
     private async Task HandleKeyUp(KeyboardEventArgs e)

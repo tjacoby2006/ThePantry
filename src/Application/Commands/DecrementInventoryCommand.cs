@@ -27,6 +27,8 @@ public class DecrementInventoryHandler : IRequestHandler<DecrementInventoryComma
             return null;
         
         item.OnHandCount = Math.Max(0, item.OnHandCount - request.QuantityUsed);
+        item.IsOpened = false;
+        item.OpenedDate = null;
         item.LastModifiedDate = DateTime.UtcNow;
         
         // Record usage history

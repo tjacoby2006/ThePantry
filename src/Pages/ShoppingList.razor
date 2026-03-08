@@ -215,6 +215,8 @@ else
                 manualItem.Category,
                 0, // On hand is 0 so it shows up in shopping list
                 manualItem.MinimumThreshold,
+                30, // Default shelf life
+                7,  // Default use within
                 null
             ));
             await ToastService.ShowSuccess($"{manualItem.Name} added to shopping list");

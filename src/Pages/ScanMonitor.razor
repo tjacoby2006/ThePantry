@@ -207,6 +207,8 @@ else
         public string Category { get; set; } = "Pantry";
         public int OnHandCount { get; set; } = 1;
         public int MinimumThreshold { get; set; } = 1;
+        public int ShelfLifeDays { get; set; } = 30;
+        public int UseWithinDays { get; set; } = 7;
     }
     
     protected override async Task OnInitializedAsync()
@@ -305,6 +307,8 @@ else
                 reviewItem.Category,
                 reviewItem.OnHandCount,
                 reviewItem.MinimumThreshold,
+                reviewItem.ShelfLifeDays,
+                reviewItem.UseWithinDays,
                 null,
                 new List<string> { selectedScan.Upc }
             ));

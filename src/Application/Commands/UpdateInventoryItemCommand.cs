@@ -12,6 +12,8 @@ public record UpdateInventoryItemCommand(
     string Category,
     int OnHandCount,
     int MinimumThreshold,
+    int ShelfLifeDays,
+    int UseWithinDays,
     string? ImageUrl = null,
     List<string>? Skus = null
 ) : IRequest<bool>;
@@ -39,6 +41,8 @@ public class UpdateInventoryItemHandler : IRequestHandler<UpdateInventoryItemCom
         item.ImageUrl = request.ImageUrl;
         item.OnHandCount = request.OnHandCount;
         item.MinimumThreshold = request.MinimumThreshold;
+        item.ShelfLifeDays = request.ShelfLifeDays;
+        item.UseWithinDays = request.UseWithinDays;
         item.LastModifiedDate = DateTime.UtcNow;
 
         // Update SKUs

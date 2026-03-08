@@ -78,6 +78,9 @@ else
                     </div>
                     <div class="mb-2"><strong>On Hand:</strong> <span class="h5 @(inventoryItem.IsBelowThreshold ? "text-danger" : "text-success")">@inventoryItem.OnHandCount</span></div>
                     <div class="mb-2"><strong>Minimum:</strong> @inventoryItem.MinimumThreshold</div>
+                    <div class="mb-2"><strong>Shelf Life:</strong> @inventoryItem.ShelfLifeDays days</div>
+                    <div class="mb-2"><strong>Use Within:</strong> @inventoryItem.UseWithinDays days (when opened)</div>
+                    <div class="mb-2"><strong>Expiry Date:</strong> @inventoryItem.ExpiryDate.ToLocalTime().ToString("d")</div>
                     <div class="mb-2"><strong>Status:</strong> 
                         @if (inventoryItem.IsBelowThreshold)
                         {
@@ -87,7 +90,19 @@ else
                         {
                             <span class="badge bg-success">In Stock</span>
                         }
+                        @if (inventoryItem.IsOpened)
+                        {
+                            <span class="badge bg-primary ms-1">Opened</span>
+                        }
                     </div>
+                    @if (inventoryItem.IsOpened && inventoryItem.OpenedDate.HasValue)
+                    {
+                        <div class="alert alert-info mt-3 py-2 small">
+                            <span class="oi oi-info me-1"></span>
+                            Opened on @inventoryItem.OpenedDate.Value.ToLocalTime().ToString("g").
+                            Use by @inventoryItem.OpenedDate.Value.AddDays(inventoryItem.UseWithinDays).ToLocalTime().ToString("d").
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -95,7 +110,7 @@ else
         <div class="col-md-8">
             <div class="card mb-4">
                 <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Usage History</h5>
+                    <h5 class="mb-0 text-white">Usage History</h5>
                     <span class="badge bg-light text-dark">Total Used: @totalUsageCount</span>
                 </div>
                 <div class="card-body p-0">
@@ -185,6 +200,8 @@ else
                     inventoryItem.Category,
                     inventoryItem.OnHandCount,
                     inventoryItem.MinimumThreshold,
+                    inventoryItem.ShelfLifeDays,
+                    inventoryItem.UseWithinDays,
                     inventoryItem.ImageUrl ?? result.ImageUrl,
                     inventoryItem.Skus
                 );

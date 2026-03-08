@@ -108,7 +108,13 @@ else
                                 <ThePantry.Shared.Components.ProductImage ImageUrl="@item.ImageUrl" Size="ThePantry.Shared.Components.ProductImage.ImageSize.Thumb" Style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px;" />
                             </td>
                             <td>
-                                <div class="fw-bold">@item.Name</div>
+                                <div class="d-flex align-items-center">
+                                    <div class="fw-bold">@item.Name</div>
+                                    @if (item.IsOpened)
+                                    {
+                                        <span class="oi oi-envelope-open ms-2 text-primary" title="Opened on @item.OpenedDate?.ToLocalTime().ToString("d")"></span>
+                                    }
+                                </div>
                                 @if (!string.IsNullOrEmpty(item.Description))
                                 {
                                     <div class="text-muted small">@item.Description</div>
@@ -132,6 +138,9 @@ else
                                     <a href="inventory/details/@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
                                     <span class="oi oi-eye"></span>
                                 </a>
+                                <button class="btn btn-sm btn-outline-warning" @onclick="() => ToggleOpened(item.Id)" title="@(item.IsOpened ? "Mark as Closed" : "Mark as Opened")">
+                                    <span class="oi @(item.IsOpened ? "oi-envelope-closed" : "oi-envelope-open")"></span>
+                                </button>
                                 <button class="btn btn-sm btn-outline-danger" @onclick="() => DecrementItem(item.Id)" title="Use Item">
                                     <span class="oi oi-minus"></span>
                                 </button>
@@ -188,6 +197,16 @@ else
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Min Threshold</label>
                                     <InputNumber class="form-control" @bind-Value="editingItem.MinimumThreshold" />
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Shelf Life (Days)</label>
+                                    <InputNumber class="form-control" @bind-Value="editingItem.ShelfLifeDays" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Use Within (Days)</label>
+                                    <InputNumber class="form-control" @bind-Value="editingItem.UseWithinDays" />
                                 </div>
                             </div>
                             <div class="mb-3">
@@ -388,6 +407,16 @@ else
         await LoadInventory();
     }
     
+    private async Task ToggleOpened(int id)
+    {
+        var result = await Mediator.Send(new ToggleOpenedStatusCommand(id));
+        if (result != null)
+        {
+            await ToastService.ShowSuccess(result.IsOpened ? "Item marked as opened" : "Item marked as closed");
+            await LoadInventory();
+        }
+    }
+
     private async Task DecrementItem(int itemId)
     {
         try
@@ -479,6 +508,8 @@ else
             Category = item.Category,
             OnHandCount = item.OnHandCount,
             MinimumThreshold = item.MinimumThreshold,
+            ShelfLifeDays = item.ShelfLifeDays,
+            UseWithinDays = item.UseWithinDays,
             ImageUrl = item.ImageUrl,
             Skus = new List<string>(item.Skus)
         };
@@ -504,6 +535,8 @@ else
                 editingItem.Category,
                 editingItem.OnHandCount,
                 editingItem.MinimumThreshold,
+                editingItem.ShelfLifeDays,
+                editingItem.UseWithinDays,
                 editingItem.ImageUrl,
                 editingItem.Skus
             ));
