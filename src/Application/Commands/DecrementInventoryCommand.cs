@@ -21,21 +21,31 @@ public class DecrementInventoryHandler : IRequestHandler<DecrementInventoryComma
     
     public async Task<InventoryItem?> Handle(DecrementInventoryCommand request, CancellationToken cancellationToken)
     {
-        var item = await _context.InventoryItems.FindAsync(new object[] { request.InventoryItemId }, cancellationToken);
+        var item = await _context.InventoryItems
+            .Include(i => i.StockEntries)
+            .FirstOrDefaultAsync(i => i.Id == request.InventoryItemId, cancellationToken);
         
         if (item == null)
             return null;
         
-        item.OnHandCount = Math.Max(0, item.OnHandCount - request.QuantityUsed);
-        item.IsOpened = false;
-        item.OpenedDate = null;
+        // FIFO logic: remove oldest entries first
+        var entriesToRemove = item.StockEntries
+            .OrderBy(s => s.AddedDate)
+            .Take(request.QuantityUsed)
+            .ToList();
+
+        foreach (var entry in entriesToRemove)
+        {
+            _context.StockEntries.Remove(entry);
+        }
+
         item.LastModifiedDate = DateTime.UtcNow;
         
         // Record usage history
         var usageHistory = new UsageHistory
         {
             InventoryItemId = item.Id,
-            QuantityUsed = request.QuantityUsed,
+            QuantityUsed = entriesToRemove.Count,
             Timestamp = DateTime.UtcNow
         };
         

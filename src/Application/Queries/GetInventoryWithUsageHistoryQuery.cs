@@ -34,30 +34,69 @@ public class GetInventoryWithUsageHistoryHandler : IRequestHandler<GetInventoryW
     
     public async Task<InventoryWithUsageHistoryResult> Handle(GetInventoryWithUsageHistoryQuery request, CancellationToken cancellationToken)
     {
-        var item = await _context.InventoryItems
+        var rawItem = await _context.InventoryItems
             .Where(i => i.Id == request.InventoryItemId)
-            .Select(i => new InventoryItemDto
+            .Select(i => new
             {
-                Id = i.Id,
-                Name = i.Name,
-                Description = i.Description,
-                Category = i.Category,
-                ImageUrl = i.ImageUrl,
-                OnHandCount = i.OnHandCount,
-                MinimumThreshold = i.MinimumThreshold,
-                ShelfLifeDays = i.ShelfLifeDays,
-                UseWithinDays = i.UseWithinDays,
-                IsOpened = i.IsOpened,
-                OpenedDate = i.OpenedDate,
-                CreatedDate = i.CreatedDate,
-                Skus = i.Skus.Select(s => s.Sku).ToList()
+                i.Id,
+                i.Name,
+                i.Description,
+                i.Category,
+                i.ImageUrl,
+                OnHandCount = i.StockEntries.Count,
+                i.MinimumThreshold,
+                i.ShelfLifeDays,
+                i.UseWithinDays,
+                i.CreatedDate,
+                Skus = i.Skus.Select(s => s.Sku).ToList(),
+                StockEntries = i.StockEntries.Select(s => new
+                {
+                    s.Id,
+                    s.AddedDate,
+                    s.IsOpened,
+                    s.OpenedDate,
+                    s.ExpirationDate
+                }).ToList()
             })
             .FirstOrDefaultAsync(cancellationToken);
             
-        if (item == null)
+        if (rawItem == null)
         {
             return new InventoryWithUsageHistoryResult();
         }
+
+        var item = new InventoryItemDto
+        {
+            Id = rawItem.Id,
+            Name = rawItem.Name,
+            Description = rawItem.Description,
+            Category = rawItem.Category,
+            ImageUrl = rawItem.ImageUrl,
+            OnHandCount = rawItem.OnHandCount,
+            MinimumThreshold = rawItem.MinimumThreshold,
+            ShelfLifeDays = rawItem.ShelfLifeDays,
+            UseWithinDays = rawItem.UseWithinDays,
+            IsOpened = rawItem.StockEntries.Any(s => s.IsOpened),
+            OpenedDate = rawItem.StockEntries.Where(s => s.IsOpened).Max(s => s.OpenedDate),
+            CreatedDate = rawItem.CreatedDate,
+            ExpiryDate = rawItem.StockEntries.Any()
+                ? rawItem.StockEntries.Min(s => s.ExpirationDate ?? s.AddedDate.AddDays(rawItem.ShelfLifeDays))
+                : rawItem.CreatedDate.AddDays(rawItem.ShelfLifeDays),
+            Skus = rawItem.Skus,
+            StockEntries = rawItem.StockEntries.Select(s => new StockEntryDto
+            {
+                Id = s.Id,
+                AddedDate = s.AddedDate,
+                IsOpened = s.IsOpened,
+                OpenedDate = s.OpenedDate,
+                ExpirationDate = s.ExpirationDate,
+                CalculatedExpiryDate = s.ExpirationDate ?? (s.IsOpened && s.OpenedDate.HasValue
+                    ? (s.OpenedDate.Value.AddDays(rawItem.UseWithinDays) < s.AddedDate.AddDays(rawItem.ShelfLifeDays)
+                        ? s.OpenedDate.Value.AddDays(rawItem.UseWithinDays)
+                        : s.AddedDate.AddDays(rawItem.ShelfLifeDays))
+                    : s.AddedDate.AddDays(rawItem.ShelfLifeDays))
+            }).ToList()
+        };
         
         var usageHistory = await _context.UsageHistories
             .Where(u => u.InventoryItemId == request.InventoryItemId)

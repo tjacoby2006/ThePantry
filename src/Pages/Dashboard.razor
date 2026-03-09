@@ -303,14 +303,14 @@ else
             var allInventory = await Mediator.Send(new GetInventoryListQuery(PageSize: 1000));
             useSoonItems = allInventory.Items
                 .Where(i => i.OnHandCount > 0 && (
-                    (i.IsOpened && i.OpenedDate.HasValue && (i.OpenedDate.Value.AddDays(i.UseWithinDays) - DateTime.UtcNow).TotalDays <= 3) ||
+                    (i.IsOpened && (i.ExpiryDate - DateTime.UtcNow).TotalDays <= 3) ||
                     (i.ExpiryDate - DateTime.UtcNow).TotalDays <= 7
                 ))
-                .OrderBy(i => i.IsOpened ? i.OpenedDate.Value.AddDays(i.UseWithinDays) : i.ExpiryDate)
+                .OrderBy(i => i.ExpiryDate)
                 .Take(5)
                 .ToList();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             Logger.LogError("Error loading dashboard data");
         }
@@ -330,7 +330,7 @@ else
         var result = await Mediator.Send(new ToggleOpenedStatusCommand(id));
         if (result != null)
         {
-            await ToastService.ShowSuccess(result.IsOpened ? "Item marked as opened" : "Item marked as closed");
+            await ToastService.ShowSuccess("Item status updated");
             await LoadDashboardData();
         }
     }

@@ -28,10 +28,22 @@ public class GetShoppingListHandler : IRequestHandler<GetShoppingListQuery, List
     
     public async Task<List<ShoppingListItemDto>> Handle(GetShoppingListQuery request, CancellationToken cancellationToken)
     {
-        return await _context.InventoryItems
-            .Where(i => i.OnHandCount < i.MinimumThreshold)
+        var rawItems = await _context.InventoryItems
             .OrderBy(i => i.Category)
             .ThenBy(i => i.Name)
+            .Select(i => new
+            {
+                i.Id,
+                i.Name,
+                i.Description,
+                i.Category,
+                OnHandCount = i.StockEntries.Count,
+                i.MinimumThreshold
+            })
+            .ToListAsync(cancellationToken);
+
+        return rawItems
+            .Where(i => i.OnHandCount < i.MinimumThreshold)
             .Select(i => new ShoppingListItemDto
             {
                 Id = i.Id,
@@ -41,6 +53,6 @@ public class GetShoppingListHandler : IRequestHandler<GetShoppingListQuery, List
                 OnHandCount = i.OnHandCount,
                 MinimumThreshold = i.MinimumThreshold
             })
-            .ToListAsync(cancellationToken);
+            .ToList();
     }
 }

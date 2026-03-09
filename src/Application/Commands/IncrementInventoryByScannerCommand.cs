@@ -38,19 +38,21 @@ public class IncrementInventoryByScannerHandler : IRequestHandler<IncrementInven
                 Description = lookupResult?.Description ?? lookupResult?.Brand,
                 ImageUrl = lookupResult?.ImageUrl,
                 Category = "Uncategorized",
-                OnHandCount = request.QuantityToAdd,
                 MinimumThreshold = 1,
                 CreatedDate = DateTime.UtcNow
             };
             
             item.Skus.Add(new ProductSku { Sku = request.Upc });
             _context.InventoryItems.Add(item);
+            await _context.SaveChangesAsync(cancellationToken);
         }
-        else
+
+        for (int i = 0; i < request.QuantityToAdd; i++)
         {
-            item.OnHandCount += request.QuantityToAdd;
-            item.LastModifiedDate = DateTime.UtcNow;
+            _context.StockEntries.Add(new StockEntry { InventoryItemId = item.Id });
         }
+        
+        item.LastModifiedDate = DateTime.UtcNow;
         
         await _context.SaveChangesAsync(cancellationToken);
         

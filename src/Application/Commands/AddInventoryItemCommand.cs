@@ -36,7 +36,10 @@ public class AddInventoryItemHandler : IRequestHandler<AddInventoryItemCommand, 
         if (existingItem != null)
         {
             // Update existing item instead of creating a new one
-            existingItem.OnHandCount += request.OnHandCount;
+            for (int i = 0; i < request.OnHandCount; i++)
+            {
+                _context.StockEntries.Add(new StockEntry { InventoryItemId = existingItem.Id });
+            }
             
             if (string.IsNullOrEmpty(existingItem.ImageUrl) && !string.IsNullOrEmpty(request.ImageUrl))
             {
@@ -64,7 +67,6 @@ public class AddInventoryItemHandler : IRequestHandler<AddInventoryItemCommand, 
             Description = request.Description,
             Category = request.Category,
             ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl,
-            OnHandCount = request.OnHandCount,
             MinimumThreshold = request.MinimumThreshold,
             ShelfLifeDays = request.ShelfLifeDays,
             UseWithinDays = request.UseWithinDays,
@@ -80,6 +82,13 @@ public class AddInventoryItemHandler : IRequestHandler<AddInventoryItemCommand, 
         }
         
         _context.InventoryItems.Add(item);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // Add stock entries after item is created to get the ID
+        for (int i = 0; i < request.OnHandCount; i++)
+        {
+            _context.StockEntries.Add(new StockEntry { InventoryItemId = item.Id });
+        }
         await _context.SaveChangesAsync(cancellationToken);
         
         return item;

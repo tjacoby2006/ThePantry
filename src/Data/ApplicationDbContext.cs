@@ -11,6 +11,7 @@ public class ApplicationDbContext : DbContext
     }
     
     public DbSet<InventoryItem> InventoryItems { get; set; } = null!;
+    public DbSet<StockEntry> StockEntries { get; set; } = null!;
     public DbSet<ProductSku> ProductSkus { get; set; } = null!;
     public DbSet<UsageHistory> UsageHistories { get; set; } = null!;
     public DbSet<ScanQueueItem> ScanQueueItems { get; set; } = null!;
@@ -27,6 +28,18 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Category).HasMaxLength(100).HasDefaultValue("Pantry");
             entity.HasIndex(e => e.Name);
             entity.HasIndex(e => e.Category);
+            entity.Ignore(e => e.OnHandCount);
+            entity.Ignore(e => e.ExpiryDate);
+        });
+
+        modelBuilder.Entity<StockEntry>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasOne(e => e.InventoryItem)
+                  .WithMany(i => i.StockEntries)
+                  .HasForeignKey(e => e.InventoryItemId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => e.InventoryItemId);
         });
 
         modelBuilder.Entity<ProductSku>(entity =>

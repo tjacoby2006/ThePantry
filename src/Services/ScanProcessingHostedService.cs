@@ -89,7 +89,6 @@ public class ScanProcessingHostedService : BackgroundService
                             Description = result.Description,
                             Category = "Pantry",
                             ImageUrl = result.ImageUrl,
-                            OnHandCount = 1,
                             MinimumThreshold = 1,
                             CreatedDate = DateTime.UtcNow
                         };
@@ -97,17 +96,20 @@ public class ScanProcessingHostedService : BackgroundService
                         
                         context.InventoryItems.Add(newItem);
                         await context.SaveChangesAsync(cancellationToken);
+
+                        // Add initial stock entry
+                        context.StockEntries.Add(new StockEntry { InventoryItemId = newItem.Id });
                         
                         scanItem.LinkedInventoryItemId = newItem.Id;
                     }
                     else
                     {
                         // Increment existing item count
-                        existingItem.OnHandCount++;
+                        context.StockEntries.Add(new StockEntry { InventoryItemId = existingItem.Id });
                         existingItem.LastModifiedDate = DateTime.UtcNow;
                         scanItem.LinkedInventoryItemId = existingItem.Id;
                         
-                        _logger.LogInformation("Incremented OnHandCount for existing item {ItemName} (UPC: {Upc})", existingItem.Name, scanItem.Upc);
+                        _logger.LogInformation("Added StockEntry for existing item {ItemName} (UPC: {Upc})", existingItem.Name, scanItem.Upc);
                     }
                 }
                 else

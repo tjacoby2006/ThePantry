@@ -21,12 +21,18 @@ public class IncrementInventoryHandler : IRequestHandler<IncrementInventoryComma
     
     public async Task<InventoryItem?> Handle(IncrementInventoryCommand request, CancellationToken cancellationToken)
     {
-        var item = await _context.InventoryItems.FindAsync(new object[] { request.InventoryItemId }, cancellationToken);
+        var item = await _context.InventoryItems
+            .Include(i => i.StockEntries)
+            .FirstOrDefaultAsync(i => i.Id == request.InventoryItemId, cancellationToken);
         
         if (item == null)
             return null;
         
-        item.OnHandCount += request.QuantityAdded;
+        for (int i = 0; i < request.QuantityAdded; i++)
+        {
+            _context.StockEntries.Add(new StockEntry { InventoryItemId = item.Id });
+        }
+
         item.LastModifiedDate = DateTime.UtcNow;
         
         await _context.SaveChangesAsync(cancellationToken);

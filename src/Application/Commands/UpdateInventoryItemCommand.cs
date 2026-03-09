@@ -31,6 +31,7 @@ public class UpdateInventoryItemHandler : IRequestHandler<UpdateInventoryItemCom
     {
         var item = await _context.InventoryItems
             .Include(i => i.Skus)
+            .Include(i => i.StockEntries)
             .FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken);
         
         if (item == null) return false;
@@ -39,11 +40,32 @@ public class UpdateInventoryItemHandler : IRequestHandler<UpdateInventoryItemCom
         item.Description = request.Description;
         item.Category = request.Category;
         item.ImageUrl = request.ImageUrl;
-        item.OnHandCount = request.OnHandCount;
         item.MinimumThreshold = request.MinimumThreshold;
         item.ShelfLifeDays = request.ShelfLifeDays;
         item.UseWithinDays = request.UseWithinDays;
         item.LastModifiedDate = DateTime.UtcNow;
+
+        // Update StockEntries to match OnHandCount
+        var currentCount = item.StockEntries.Count;
+        if (request.OnHandCount > currentCount)
+        {
+            for (int i = 0; i < request.OnHandCount - currentCount; i++)
+            {
+                _context.StockEntries.Add(new StockEntry { InventoryItemId = item.Id });
+            }
+        }
+        else if (request.OnHandCount < currentCount)
+        {
+            var entriesToRemove = item.StockEntries
+                .OrderBy(s => s.AddedDate)
+                .Take(currentCount - request.OnHandCount)
+                .ToList();
+            
+            foreach (var entry in entriesToRemove)
+            {
+                _context.StockEntries.Remove(entry);
+            }
+        }
 
         // Update SKUs
         if (request.Skus != null)

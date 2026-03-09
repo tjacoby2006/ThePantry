@@ -2,6 +2,8 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ThePantry.Data;
 
+using ThePantry.Domain;
+
 namespace ThePantry.Application.Commands;
 
 public record MarkAsPurchasedCommand(int Id, int Quantity) : IRequest<bool>;
@@ -21,7 +23,10 @@ public class MarkAsPurchasedHandler : IRequestHandler<MarkAsPurchasedCommand, bo
         
         if (item == null) return false;
         
-        item.OnHandCount += request.Quantity;
+        for (int i = 0; i < request.Quantity; i++)
+        {
+            _context.StockEntries.Add(new StockEntry { InventoryItemId = item.Id });
+        }
         
         await _context.SaveChangesAsync(cancellationToken);
         return true;

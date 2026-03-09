@@ -26,6 +26,7 @@ public class DecrementInventoryByScannerHandler : IRequestHandler<DecrementInven
     {
         var item = await _context.InventoryItems
             .Include(i => i.Skus)
+            .Include(i => i.StockEntries)
             .FirstOrDefaultAsync(i => i.Skus.Any(s => s.Sku == request.Upc), cancellationToken);
         
         if (item == null)
@@ -39,7 +40,6 @@ public class DecrementInventoryByScannerHandler : IRequestHandler<DecrementInven
                 Description = lookupResult?.Description ?? lookupResult?.Brand,
                 ImageUrl = lookupResult?.ImageUrl,
                 Category = "Uncategorized",
-                OnHandCount = 0,
                 MinimumThreshold = 1,
                 CreatedDate = DateTime.UtcNow
             };
@@ -49,14 +49,24 @@ public class DecrementInventoryByScannerHandler : IRequestHandler<DecrementInven
             await _context.SaveChangesAsync(cancellationToken);
         }
         
-        item.OnHandCount = Math.Max(0, item.OnHandCount - request.QuantityUsed);
+        // FIFO logic: remove oldest entries first
+        var entriesToRemove = item.StockEntries
+            .OrderBy(s => s.AddedDate)
+            .Take(request.QuantityUsed)
+            .ToList();
+
+        foreach (var entry in entriesToRemove)
+        {
+            _context.StockEntries.Remove(entry);
+        }
+
         item.LastModifiedDate = DateTime.UtcNow;
         
         // Record usage history
         var usageHistory = new UsageHistory
         {
             InventoryItemId = item.Id,
-            QuantityUsed = request.QuantityUsed,
+            QuantityUsed = entriesToRemove.Count,
             Timestamp = DateTime.UtcNow
         };
         

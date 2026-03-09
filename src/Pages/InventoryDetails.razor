@@ -95,12 +95,53 @@ else
                             <span class="badge bg-primary ms-1">Opened</span>
                         }
                     </div>
-                    @if (inventoryItem.IsOpened && inventoryItem.OpenedDate.HasValue)
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0 text-white">Stock Entries</h5>
+                </div>
+                <div class="card-body p-0">
+                    @if (inventoryItem.StockEntries == null || !inventoryItem.StockEntries.Any())
                     {
-                        <div class="alert alert-info mt-3 py-2 small">
-                            <span class="oi oi-info me-1"></span>
-                            Opened on @inventoryItem.OpenedDate.Value.ToLocalTime().ToString("g").
-                            Use by @inventoryItem.OpenedDate.Value.AddDays(inventoryItem.UseWithinDays).ToLocalTime().ToString("d").
+                        <div class="p-3 text-muted">No active stock entries.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Added</th>
+                                        <th>Status</th>
+                                        <th>Expiry</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var entry in inventoryItem.StockEntries.OrderBy(s => s.AddedDate))
+                                    {
+                                        <tr>
+                                            <td>@entry.AddedDate.ToLocalTime().ToString("d")</td>
+                                            <td>
+                                                @if (entry.IsOpened)
+                                                {
+                                                    <span class="badge bg-primary">Opened</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Unopened</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <span class="@(entry.CalculatedExpiryDate < DateTime.UtcNow ? "text-danger fw-bold" : "")">
+                                                    @entry.CalculatedExpiryDate.ToLocalTime().ToString("d")
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
                         </div>
                     }
                 </div>

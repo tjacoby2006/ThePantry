@@ -26,6 +26,7 @@ public class CombineInventoryItemsHandler : IRequestHandler<CombineInventoryItem
         var items = await _context.InventoryItems
             .Include(i => i.Skus)
             .Include(i => i.UsageHistories)
+            .Include(i => i.StockEntries)
             .Where(i => request.ItemIds.Contains(i.Id))
             .ToListAsync(cancellationToken);
 
@@ -65,8 +66,12 @@ public class CombineInventoryItemsHandler : IRequestHandler<CombineInventoryItem
 
         foreach (var otherItem in otherItems)
         {
-            // Combine OnHandCount
-            primaryItem.OnHandCount += otherItem.OnHandCount;
+            // Move StockEntries
+            foreach (var entry in otherItem.StockEntries.ToList())
+            {
+                entry.InventoryItemId = primaryItem.Id;
+                primaryItem.StockEntries.Add(entry);
+            }
 
             // Move SKUs
             foreach (var sku in otherItem.Skus.ToList())

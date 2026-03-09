@@ -412,7 +412,7 @@ else
         var result = await Mediator.Send(new ToggleOpenedStatusCommand(id));
         if (result != null)
         {
-            await ToastService.ShowSuccess(result.IsOpened ? "Item marked as opened" : "Item marked as closed");
+            await ToastService.ShowSuccess("Item status updated");
             await LoadInventory();
         }
     }

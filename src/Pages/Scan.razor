@@ -67,7 +67,7 @@
                         <div class="fw-bold">@lastProcessedItem.Name</div>
                         <div class="small">
                             @if (CurrentMode == "add") { <span>Added! New count: @lastProcessedItem.OnHandCount</span> }
-                            else if (CurrentMode == "open") { <span>@(lastProcessedItem.IsOpened ? "Marked as Opened" : "Marked as Closed")</span> }
+                            else if (CurrentMode == "open") { <span>Item status updated</span> }
                             else { <span>Used! Remaining: @lastProcessedItem.OnHandCount</span> }
                         </div>
                     </div>
@@ -185,7 +185,7 @@
                     break;
                 case "open":
                     result = await Mediator.Send(new MarkAsOpenedByScannerCommand(upc));
-                    await ToastService.ShowInfo($"{(result?.IsOpened == true ? "Opened" : "Closed")} {result?.Name}");
+                    await ToastService.ShowInfo($"Updated {result?.Name}");
                     break;
                 case "use":
                     result = await Mediator.Send(new DecrementInventoryByScannerCommand(upc));

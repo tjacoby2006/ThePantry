@@ -40,7 +40,18 @@ public class InventoryItemDto
     public List<string> Skus { get; set; } = new();
     public bool IsBelowThreshold => OnHandCount < MinimumThreshold;
     public int Deficit => Math.Max(0, MinimumThreshold - OnHandCount);
-    public DateTime ExpiryDate => CreatedDate.AddDays(ShelfLifeDays);
+    public DateTime ExpiryDate { get; set; }
+    public List<StockEntryDto> StockEntries { get; set; } = new();
+}
+
+public class StockEntryDto
+{
+    public int Id { get; set; }
+    public DateTime AddedDate { get; set; }
+    public bool IsOpened { get; set; }
+    public DateTime? OpenedDate { get; set; }
+    public DateTime? ExpirationDate { get; set; }
+    public DateTime CalculatedExpiryDate { get; set; }
 }
 
 public class GetInventoryListHandler : IRequestHandler<GetInventoryListQuery, InventoryListResult>
@@ -78,7 +89,7 @@ public class GetInventoryListHandler : IRequestHandler<GetInventoryListQuery, In
             {
                 "name" => request.SortDescending ? query.OrderByDescending(i => i.Name) : query.OrderBy(i => i.Name),
                 "category" => request.SortDescending ? query.OrderByDescending(i => i.Category) : query.OrderBy(i => i.Category),
-                "onhand" => request.SortDescending ? query.OrderByDescending(i => i.OnHandCount) : query.OrderBy(i => i.OnHandCount),
+                "onhand" => request.SortDescending ? query.OrderByDescending(i => i.StockEntries.Count) : query.OrderBy(i => i.StockEntries.Count),
                 "min" => request.SortDescending ? query.OrderByDescending(i => i.MinimumThreshold) : query.OrderBy(i => i.MinimumThreshold),
                 _ => query.OrderBy(i => i.Name)
             };
@@ -91,27 +102,66 @@ public class GetInventoryListHandler : IRequestHandler<GetInventoryListQuery, In
         var items = await query
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .Select(i => new InventoryItemDto
+            .Select(i => new
             {
-                Id = i.Id,
-                Name = i.Name,
-                Description = i.Description,
-                Category = i.Category,
-                ImageUrl = i.ImageUrl,
-                OnHandCount = i.OnHandCount,
-                MinimumThreshold = i.MinimumThreshold,
-                ShelfLifeDays = i.ShelfLifeDays,
-                UseWithinDays = i.UseWithinDays,
-                IsOpened = i.IsOpened,
-                OpenedDate = i.OpenedDate,
-                CreatedDate = i.CreatedDate,
-                Skus = i.Skus.Select(s => s.Sku).ToList()
+                i.Id,
+                i.Name,
+                i.Description,
+                i.Category,
+                i.ImageUrl,
+                OnHandCount = i.StockEntries.Count,
+                i.MinimumThreshold,
+                i.ShelfLifeDays,
+                i.UseWithinDays,
+                i.CreatedDate,
+                Skus = i.Skus.Select(s => s.Sku).ToList(),
+                StockEntries = i.StockEntries.Select(s => new
+                {
+                    s.Id,
+                    s.AddedDate,
+                    s.IsOpened,
+                    s.OpenedDate,
+                    s.ExpirationDate
+                }).ToList()
             })
             .ToListAsync(cancellationToken);
+
+        var resultItems = items.Select(i => new InventoryItemDto
+        {
+            Id = i.Id,
+            Name = i.Name,
+            Description = i.Description,
+            Category = i.Category,
+            ImageUrl = i.ImageUrl,
+            OnHandCount = i.OnHandCount,
+            MinimumThreshold = i.MinimumThreshold,
+            ShelfLifeDays = i.ShelfLifeDays,
+            UseWithinDays = i.UseWithinDays,
+            IsOpened = i.StockEntries.Any(s => s.IsOpened),
+            OpenedDate = i.StockEntries.Where(s => s.IsOpened).Max(s => s.OpenedDate),
+            CreatedDate = i.CreatedDate,
+            ExpiryDate = i.StockEntries.Any()
+                ? i.StockEntries.Min(s => s.ExpirationDate ?? s.AddedDate.AddDays(i.ShelfLifeDays))
+                : i.CreatedDate.AddDays(i.ShelfLifeDays),
+            Skus = i.Skus,
+            StockEntries = i.StockEntries.Select(s => new StockEntryDto
+            {
+                Id = s.Id,
+                AddedDate = s.AddedDate,
+                IsOpened = s.IsOpened,
+                OpenedDate = s.OpenedDate,
+                ExpirationDate = s.ExpirationDate,
+                CalculatedExpiryDate = s.ExpirationDate ?? (s.IsOpened && s.OpenedDate.HasValue
+                    ? (s.OpenedDate.Value.AddDays(i.UseWithinDays) < s.AddedDate.AddDays(i.ShelfLifeDays)
+                        ? s.OpenedDate.Value.AddDays(i.UseWithinDays)
+                        : s.AddedDate.AddDays(i.ShelfLifeDays))
+                    : s.AddedDate.AddDays(i.ShelfLifeDays))
+            }).ToList()
+        }).ToList();
         
         return new InventoryListResult
         {
-            Items = items,
+            Items = resultItems,
             TotalCount = totalCount,
             Page = request.Page,
             PageSize = request.PageSize

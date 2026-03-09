@@ -23,6 +23,7 @@ public class MarkAsOpenedByScannerHandler : IRequestHandler<MarkAsOpenedByScanne
     {
         var item = await _context.InventoryItems
             .Include(i => i.Skus)
+            .Include(i => i.StockEntries)
             .FirstOrDefaultAsync(i => i.Skus.Any(s => s.Sku == request.Upc), cancellationToken);
 
         if (item == null)
@@ -35,17 +36,38 @@ public class MarkAsOpenedByScannerHandler : IRequestHandler<MarkAsOpenedByScanne
                 Description = lookupResult?.Description ?? lookupResult?.Brand,
                 ImageUrl = lookupResult?.ImageUrl,
                 Category = "Uncategorized",
-                OnHandCount = 1,
                 MinimumThreshold = 1,
                 CreatedDate = DateTime.UtcNow
             };
             
             item.Skus.Add(new ProductSku { Sku = request.Upc });
             _context.InventoryItems.Add(item);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // Add initial stock entry
+            var entry = new StockEntry { InventoryItemId = item.Id, IsOpened = true, OpenedDate = DateTime.UtcNow };
+            _context.StockEntries.Add(entry);
+        }
+        else
+        {
+            // Mark oldest unopened entry as opened
+            var entryToOpen = item.StockEntries
+                .OrderBy(s => s.IsOpened)
+                .ThenBy(s => s.AddedDate)
+                .FirstOrDefault();
+
+            if (entryToOpen != null)
+            {
+                entryToOpen.IsOpened = true;
+                entryToOpen.OpenedDate = DateTime.UtcNow;
+            }
+            else
+            {
+                // If no entries exist, create one
+                _context.StockEntries.Add(new StockEntry { InventoryItemId = item.Id, IsOpened = true, OpenedDate = DateTime.UtcNow });
+            }
         }
 
-        item.IsOpened = true;
-        item.OpenedDate = item.IsOpened ? DateTime.UtcNow : null;
         item.LastModifiedDate = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
